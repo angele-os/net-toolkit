@@ -1,7 +1,7 @@
 {
   "name": "net-toolkit",
   "version": "1.0.0",
-  "description": "IPv4 subnet and VLSM calculator with a Cisco config generator — vanilla JavaScript, fully tested.",
+  "description": "Browser-based IPv4 subnet and VLSM calculator with CSV export — vanilla JavaScript, zero dependencies, tested with node:test.",
   "private": true,
   "engines": {
     "node": ">=24"
