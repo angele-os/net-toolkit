@@ -1,6 +1,6 @@
 # Politique de sécurité
 
-> **English summary.** net-toolkit is a static, client-side IPv4/VLSM calculator: no server, no database, no account, no cookie, and no data ever leaves the browser. To report a vulnerability, please use GitHub's **private vulnerability reporting** ([Security → Report a vulnerability](https://github.com/angele-os/net-toolkit/security/advisories/new)) instead of a public issue. The page ignores the URL entirely: the shareable-link feature was deliberately removed to reduce the attack surface, so no outside data enters the page. The threat model below covers XSS (textContent only, strict CSP with Trusted Types), CSV/formula injection (OWASP-style escaping, unit-tested), oversized input (length limits in both the pure functions and the HTML), invisible/bidirectional Unicode characters (Cc/Cf categories rejected), supply chain (zero npm dependencies, self-hosted fonts, SHA-pinned GitHub Actions updated by Dependabot), secret leakage, accepted clickjacking risk, and subdomain takeover.
+> **English summary.** net-toolkit is a static, client-side IPv4/VLSM calculator: no server, no database, no account, no cookie, and no data ever leaves the browser. To report a vulnerability, please use GitHub's **private vulnerability reporting** ([Security → Report a vulnerability](https://github.com/angele-os/net-toolkit/security/advisories/new)) instead of a public issue. The page ignores the URL entirely: the shareable-link feature was deliberately removed to reduce the attack surface, so no outside data enters the page. The threat model below covers XSS (textContent only, strict CSP with Trusted Types), CSV/formula injection (OWASP-style escaping, unit-tested), oversized input (length limits in both the pure functions and the HTML), invisible/bidirectional Unicode characters (Cc/Cf categories rejected), supply chain (zero npm dependencies, self-hosted fonts, SHA-pinned GitHub Actions updated by Dependabot), deployment to GitHub Pages (allow-listed site files only, deployed only when tests pass, write permissions and a short-lived OIDC token limited to the deploy job), secret leakage, accepted clickjacking risk, and subdomain takeover.
 
 ## Signaler une faille
 
@@ -36,6 +36,7 @@ C'est un projet personnel, maintenu sur mon temps libre. J'essaie de répondre s
 | Saisies énormes | Oui | Limites dans les fonctions pures **et** `maxlength` |
 | Caractères invisibles | Oui | Catégories Unicode Cc et Cf refusées dans les noms |
 | Chaîne d'approvisionnement | Oui | 0 dépendance npm, polices auto-hébergées, actions épinglées par SHA + Dependabot |
+| Publication du site | Oui | Liste blanche des fichiers publiés, déploiement seulement si les tests passent, droits d'écriture limités au job deploy |
 | Fuite de secrets | Faible | Aucun secret nécessaire, jeton CI en lecture seule |
 | Clickjacking | Risque accepté | Voir justification |
 | Vol de sous-domaine | À la mise en ligne | Domaine vérifié, ordre de suppression DNS |
@@ -99,9 +100,21 @@ Le risque : du code malveillant arrive par une dépendance, un CDN ou un outil d
 Les protections :
 - **Aucune dépendance npm**, ni à l'exécution ni pour les tests (`node:test` est intégré à Node.js). `"private": true` dans `package.json` empêche une publication accidentelle sur npm.
 - **Aucune ressource externe** : les polices sont auto-hébergées dans `fonts/` (licence SIL OFL 1.1), et la CSP (`'self'`) bloque tout CDN.
-- **GitHub Actions épinglées par empreinte SHA complète** (avec la version en commentaire). Contrairement à une étiquette comme `v7`, un SHA ne peut pas être déplacé vers un autre code.
+- **GitHub Actions épinglées par empreinte SHA complète** (avec la version en commentaire). Contrairement à une étiquette comme `v7`, un SHA ne peut pas être déplacé vers un autre code. Un test (`tests/ci.test.js`) vérifie que chaque `uses:` des workflows respecte cette règle.
 - **Dependabot** (`.github/dependabot.yml`) propose chaque semaine les mises à jour de ces actions, à relire avant de fusionner.
-- Le workflow s'exécute avec **`permissions: contents: read`** et utilise l'évènement `pull_request` (et non `pull_request_target`) : une pull request venant d'un fork ne reçoit ni secret ni droit d'écriture.
+- Le workflow de tests s'exécute avec **`permissions: contents: read`** et utilise l'évènement `pull_request` (et non `pull_request_target`) : une pull request venant d'un fork ne reçoit ni secret ni droit d'écriture.
+
+#### Publication du site (GitHub Pages)
+
+Le risque : publier par erreur un fichier qui ne devrait pas l'être (fichier de configuration, brouillon, secret oublié), publier une version cassée, ou qu'un job compromis modifie le site.
+
+Les protections (`.github/workflows/deploy.yml`) :
+- **Publication limitée aux fichiers du site, par liste blanche.** Le job `build` copie dans `_site` uniquement `index.html`, `404.html`, `favicon.svg`, `robots.txt`, `sitemap.xml`, `css/`, `js/` et `fonts/`. Les tests, la configuration (`package.json`, `.github/`, `CLAUDE.md`…) et tout fichier ajouté plus tard au dépôt ne sont **jamais** publiés sans modification explicite de cette liste. La liste des fichiers publiés est affichée dans le journal du workflow.
+- **Déploiement conditionné aux tests.** Le job `deploy` ne démarre que si les jobs `test` et `build` ont réussi (`needs: [test, build]`) : une version qui casse un test n'est jamais mise en ligne.
+- **Permissions minimales par job.** `test` et `build` n'ont que `contents: read`. Seul `deploy` reçoit `pages: write` (publier sur Pages) et `id-token: write` (obtenir un jeton d'identité OIDC à courte durée de vie, prouvant à GitHub Pages que le déploiement vient bien de ce workflow). Ce job n'exécute aucun code du dépôt : il ne fait que publier l'archive préparée par `build`.
+- **Aucun secret stocké** : l'authentification auprès de Pages passe par ce jeton OIDC temporaire, et `persist-credentials: false` est utilisé à chaque `checkout`.
+- **Un seul déploiement à la fois** (`concurrency`), sans annuler celui en cours, pour ne jamais laisser un site à moitié publié.
+- **Environnement `github-pages`** : GitHub y enregistre l'historique des déploiements, et ses règles de protection (réglages du dépôt) peuvent limiter les déploiements à la branche `main`.
 
 #### Fuite de secrets
 
@@ -110,7 +123,7 @@ Le risque : une clé ou un mot de passe publié dans ce dépôt public, ou volé
 Les protections :
 - l'outil **n'a besoin d'aucun secret** : pas d'API, pas de clé, pas de compte ;
 - `.gitignore` exclut les fichiers `.env` ;
-- dans le workflow, le jeton GitHub est en **lecture seule**, et `persist-credentials: false` évite de le laisser dans la configuration git de la machine de test ;
+- dans les workflows, le jeton GitHub est en **lecture seule**, sauf pour le job de publication qui peut seulement écrire sur GitHub Pages (voir « Publication du site »), et `persist-credentials: false` évite de le laisser dans la configuration git de la machine virtuelle ;
 - côté utilisateur, les saisies ne quittent jamais le navigateur (pas de `connect-src`).
 
 #### Clickjacking : risque accepté
