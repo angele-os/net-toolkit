@@ -39,7 +39,7 @@
     <section class="hero" aria-labelledby="titre">
       <p class="eyebrow">OUTIL RÉSEAU — IPv4 &amp; VLSM</p>
       <h1 id="titre">Calculateur de sous-réseaux</h1>
-      <p class="lead">Analyser une adresse IPv4 ou découper un réseau en sous-réseaux de taille variable. Les calculs se font dans le navigateur : rien n'est envoyé.</p>
+      <p class="lead">Analyser une adresse IPv4, découper un réseau en sous-réseaux de taille variable, puis en tirer la configuration Cisco du switch et du routeur. Les calculs se font dans le navigateur : rien n'est envoyé.</p>
     </section>
 
     <div class="panel">
@@ -49,6 +49,7 @@
       <div class="tabs" role="tablist" aria-label="Outils">
         <button class="tab" type="button" role="tab" id="tab-ip" aria-controls="panel-ip" aria-selected="true">Analyser une IP</button>
         <button class="tab" type="button" role="tab" id="tab-vlsm" aria-controls="panel-vlsm" aria-selected="false" tabindex="-1">Plan VLSM</button>
+        <button class="tab" type="button" role="tab" id="tab-cisco" aria-controls="panel-cisco" aria-selected="false" tabindex="-1">Générateur Cisco</button>
       </div>
 
       <!-- ===== Onglet 1 : analyser une IP ===== -->
@@ -216,6 +217,219 @@
             <p class="free" id="vlsm-libre"></p>
             <ul class="blocs" id="vlsm-blocs" aria-label="Blocs libres réutilisables"></ul>
           </div>
+
+          <div class="suite">
+            <button class="btn btn--primary" type="button" id="btn-envoyer-cisco" aria-describedby="envoyer-cisco-hint">
+              <span>Envoyer vers le générateur Cisco</span>
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
+            </button>
+            <p class="hint" id="envoyer-cisco-hint">Ouvre l'onglet « Générateur Cisco » avec ces sous-réseaux préremplis.</p>
+          </div>
+        </section>
+      </section>
+
+      <!-- ===== Onglet 3 : générateur de configurations Cisco ===== -->
+      <section class="tabpanel" id="panel-cisco" role="tabpanel" aria-labelledby="tab-cisco" tabindex="0" hidden>
+        <!-- Affiché tant qu'aucun plan n'a été envoyé depuis l'onglet VLSM -->
+        <div class="vide" id="cisco-vide">
+          <p>Le générateur part d'un plan d'adressage. Calcule un plan dans l'onglet « Plan VLSM », puis clique sur « Envoyer vers le générateur Cisco ».</p>
+          <button class="btn btn--secondary btn--sm" type="button" id="btn-aller-vlsm">Aller au plan VLSM</button>
+        </div>
+
+        <form class="form" id="form-cisco" novalidate hidden>
+          <p class="results-sub mono" id="cisco-plan"></p>
+
+          <fieldset class="groupe">
+            <legend>VLAN</legend>
+            <p class="hint">Un VLAN par sous-réseau coché. Les /30 (liens point à point) sont décochés au départ. Ports access du switch 2960-24TT : Fa0/1 à Fa0/24 et Gi0/1-2, une plage par VLAN (ex. Fa0/1-8 ou Gi0/2).</p>
+            <ol class="vlans" id="cisco-vlans"></ol>
+          </fieldset>
+
+          <fieldset class="groupe">
+            <legend>Équipements</legend>
+            <div class="grille">
+              <div class="field">
+                <label for="cisco-hostname-switch">Hostname du switch</label>
+                <p class="hint" id="cisco-hostname-switch-hint">Une lettre, puis lettres sans accent, chiffres ou tirets.</p>
+                <input class="input input--mono" id="cisco-hostname-switch" type="text" maxlength="63"
+                       autocomplete="off" autocapitalize="off" spellcheck="false"
+                       aria-describedby="cisco-hostname-switch-hint cisco-hostname-switch-error">
+                <p class="field-error" id="cisco-hostname-switch-error"></p>
+              </div>
+              <div class="field">
+                <label for="cisco-hostname-routeur">Hostname du routeur</label>
+                <p class="hint" id="cisco-hostname-routeur-hint">Mêmes règles, différent de celui du switch.</p>
+                <input class="input input--mono" id="cisco-hostname-routeur" type="text" maxlength="63"
+                       autocomplete="off" autocapitalize="off" spellcheck="false"
+                       aria-describedby="cisco-hostname-routeur-hint cisco-hostname-routeur-error">
+                <p class="field-error" id="cisco-hostname-routeur-error"></p>
+              </div>
+              <div class="field">
+                <label for="cisco-trunk">Port trunk du switch</label>
+                <p class="hint" id="cisco-trunk-hint">Relié à G0/0/0 du routeur ISR 4321.</p>
+                <input class="input input--mono" id="cisco-trunk" type="text" maxlength="20"
+                       autocomplete="off" autocapitalize="off" spellcheck="false"
+                       aria-describedby="cisco-trunk-hint cisco-trunk-error">
+                <p class="field-error" id="cisco-trunk-error"></p>
+              </div>
+              <div class="field">
+                <label for="cisco-domaine">Nom de domaine</label>
+                <p class="hint" id="cisco-domaine-hint">Nécessaire pour créer la clé SSH.</p>
+                <input class="input input--mono" id="cisco-domaine" type="text" maxlength="64"
+                       autocomplete="off" autocapitalize="off" spellcheck="false"
+                       aria-describedby="cisco-domaine-hint cisco-domaine-error">
+                <p class="field-error" id="cisco-domaine-error"></p>
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset class="groupe">
+            <legend>VLAN natif et management</legend>
+            <div class="grille">
+              <div class="field">
+                <label for="cisco-natif-id">Numéro du VLAN natif</label>
+                <p class="hint" id="cisco-natif-id-hint">Trames non étiquetées du trunk, sans aucun appareil.</p>
+                <input class="input input--mono" id="cisco-natif-id" type="text" inputmode="numeric" maxlength="4"
+                       autocomplete="off" aria-describedby="cisco-natif-id-hint cisco-natif-id-error">
+                <p class="field-error" id="cisco-natif-id-error"></p>
+              </div>
+              <div class="field">
+                <label for="cisco-natif-nom">Nom du VLAN natif</label>
+                <input class="input input--mono" id="cisco-natif-nom" type="text" maxlength="32"
+                       autocomplete="off" autocapitalize="off" spellcheck="false" aria-describedby="cisco-natif-nom-error">
+                <p class="field-error" id="cisco-natif-nom-error"></p>
+              </div>
+              <div class="field">
+                <label for="cisco-mgmt-id">Numéro du VLAN de management</label>
+                <input class="input input--mono" id="cisco-mgmt-id" type="text" inputmode="numeric" maxlength="4"
+                       autocomplete="off" aria-describedby="cisco-mgmt-id-error">
+                <p class="field-error" id="cisco-mgmt-id-error"></p>
+              </div>
+              <div class="field">
+                <label for="cisco-mgmt-nom">Nom du VLAN de management</label>
+                <input class="input input--mono" id="cisco-mgmt-nom" type="text" maxlength="32"
+                       autocomplete="off" autocapitalize="off" spellcheck="false" aria-describedby="cisco-mgmt-nom-error">
+                <p class="field-error" id="cisco-mgmt-nom-error"></p>
+              </div>
+              <div class="field grille__large">
+                <label for="cisco-mgmt-reseau">Sous-réseau de management</label>
+                <p class="hint" id="cisco-mgmt-reseau-hint">Proposé : le plus grand bloc libre du plan. Le switch prend la dernière adresse utilisable, le routeur la première.</p>
+                <input class="input input--mono" id="cisco-mgmt-reseau" type="text" maxlength="40"
+                       autocomplete="off" autocapitalize="off" spellcheck="false"
+                       aria-describedby="cisco-mgmt-reseau-hint cisco-mgmt-reseau-error">
+                <p class="field-error" id="cisco-mgmt-reseau-error"></p>
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset class="groupe">
+            <legend>Port Security (ports access)</legend>
+            <div class="grille">
+              <div class="field">
+                <label for="cisco-ps-max">Adresses MAC par port</label>
+                <p class="hint" id="cisco-ps-max-hint">De 1 à 64.</p>
+                <input class="input input--mono" id="cisco-ps-max" type="text" inputmode="numeric" maxlength="2"
+                       autocomplete="off" aria-describedby="cisco-ps-max-hint cisco-ps-max-error">
+                <p class="field-error" id="cisco-ps-max-error"></p>
+              </div>
+              <div class="field">
+                <label for="cisco-ps-violation">En cas de violation</label>
+                <p class="hint" id="cisco-ps-violation-hint">Réaction quand un appareil de trop se branche.</p>
+                <select class="input" id="cisco-ps-violation" aria-describedby="cisco-ps-violation-hint cisco-ps-violation-error">
+                  <option value="shutdown">shutdown : couper le port</option>
+                  <option value="restrict">restrict : bloquer et journaliser</option>
+                  <option value="protect">protect : bloquer sans alerte</option>
+                </select>
+                <p class="field-error" id="cisco-ps-violation-error"></p>
+              </div>
+              <div class="field grille__large">
+                <div class="option">
+                  <input class="case" id="cisco-ps-sticky" type="checkbox" aria-describedby="cisco-ps-sticky-hint cisco-ps-sticky-error">
+                  <label for="cisco-ps-sticky">Sticky : retenir les adresses MAC apprises</label>
+                </div>
+                <p class="hint" id="cisco-ps-sticky-hint">Elles sont écrites dans la configuration du switch.</p>
+                <p class="field-error" id="cisco-ps-sticky-error"></p>
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset class="groupe">
+            <legend>Services</legend>
+            <div class="grille">
+              <div class="field">
+                <label for="cisco-dns">Serveur DNS (distribué par DHCP)</label>
+                <p class="hint" id="cisco-dns-hint">Ex. 1.1.1.1</p>
+                <input class="input input--mono" id="cisco-dns" type="text" maxlength="40"
+                       autocomplete="off" autocapitalize="off" spellcheck="false"
+                       aria-describedby="cisco-dns-hint cisco-dns-error">
+                <p class="field-error" id="cisco-dns-error"></p>
+              </div>
+              <div class="field grille__large">
+                <label for="cisco-banniere">Bannière de connexion</label>
+                <p class="hint" id="cisco-banniere-hint">Une ligne, sans accent, sans « # » ni « ? » (200 caractères au maximum).</p>
+                <input class="input" id="cisco-banniere" type="text" maxlength="200"
+                       autocomplete="off" aria-describedby="cisco-banniere-hint cisco-banniere-error">
+                <p class="field-error" id="cisco-banniere-error"></p>
+              </div>
+            </div>
+          </fieldset>
+
+          <div>
+            <button class="btn btn--primary" type="submit">Générer les configurations</button>
+            <!-- Erreur qui ne concerne aucun champ en particulier -->
+            <p class="field-error form-error" id="cisco-erreur" tabindex="-1"></p>
+          </div>
+        </form>
+
+        <section class="results" id="result-cisco" aria-labelledby="result-cisco-titre" hidden>
+          <div class="results-head">
+            <div>
+              <h2 id="result-cisco-titre">Configurations</h2>
+              <p class="results-sub mono" id="cisco-resume"></p>
+            </div>
+          </div>
+
+          <div class="avertissement" role="note">
+            <svg class="icon avertissement__icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+            <p><strong>Configuration à relire et à tester (par exemple dans Packet Tracer) avant tout usage sur un équipement réel.</strong> Remplace les marqueurs <code>&lt;A_REMPLACER&gt;</code>.</p>
+          </div>
+
+          <div class="card config">
+            <div class="config__tete">
+              <h3 id="cisco-switch-titre">Switch</h3>
+              <div class="actions">
+                <button class="btn btn--secondary btn--sm btn-copy" type="button" data-config="switch">
+                  <svg class="icon icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                  <svg class="icon icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+                  <span>Copier<span class="sr-only"> la configuration du switch</span></span>
+                </button>
+                <button class="btn btn--secondary btn--sm btn-txt" type="button" data-config="switch">
+                  <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg>
+                  <span>Télécharger en .txt<span class="sr-only"> la configuration du switch</span></span>
+                </button>
+              </div>
+            </div>
+            <!-- Zone défilante : tabindex="0" pour la faire défiler au clavier, role="region" pour la nommer. -->
+            <pre class="config__texte" id="cisco-switch" tabindex="0" role="region" aria-labelledby="cisco-switch-titre"></pre>
+          </div>
+
+          <div class="card config">
+            <div class="config__tete">
+              <h3 id="cisco-routeur-titre">Routeur</h3>
+              <div class="actions">
+                <button class="btn btn--secondary btn--sm btn-copy" type="button" data-config="routeur">
+                  <svg class="icon icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                  <svg class="icon icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+                  <span>Copier<span class="sr-only"> la configuration du routeur</span></span>
+                </button>
+                <button class="btn btn--secondary btn--sm btn-txt" type="button" data-config="routeur">
+                  <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg>
+                  <span>Télécharger en .txt<span class="sr-only"> la configuration du routeur</span></span>
+                </button>
+              </div>
+            </div>
+            <pre class="config__texte" id="cisco-routeur" tabindex="0" role="region" aria-labelledby="cisco-routeur-titre"></pre>
+          </div>
         </section>
       </section>
     </div>
@@ -251,6 +465,38 @@
       <button class="btn-icon besoin__suppr js-supprimer" type="button">
         <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
       </button>
+    </li>
+  </template>
+
+  <!-- Modèle d'une ligne du générateur Cisco (un sous-réseau du plan) : recopié par app.js, sans innerHTML. -->
+  <template id="modele-vlan">
+    <li class="vlan">
+      <div class="vlan__tete">
+        <p class="vlan__titre js-titre"></p>
+        <p class="vlan__info mono js-info"></p>
+        <div class="option">
+          <input class="case js-creer" type="checkbox">
+          <label>Créer un VLAN<span class="sr-only js-pour"></span></label>
+        </div>
+        <p class="field-error"></p>
+      </div>
+      <div class="vlan__champs">
+        <div class="field vlan__id">
+          <label>Numéro<span class="sr-only js-pour"></span></label>
+          <input class="input input--mono js-vlan-id" type="text" inputmode="numeric" maxlength="4" autocomplete="off">
+          <p class="field-error"></p>
+        </div>
+        <div class="field vlan__nom">
+          <label>Nom<span class="sr-only js-pour"></span></label>
+          <input class="input input--mono js-vlan-nom" type="text" maxlength="32" autocomplete="off" autocapitalize="off" spellcheck="false">
+          <p class="field-error"></p>
+        </div>
+        <div class="field vlan__ports">
+          <label>Ports access<span class="sr-only js-pour"></span></label>
+          <input class="input input--mono js-vlan-ports" type="text" maxlength="20" autocomplete="off" autocapitalize="off" spellcheck="false">
+          <p class="field-error"></p>
+        </div>
+      </div>
     </li>
   </template>
 </body>

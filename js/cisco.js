@@ -108,45 +108,78 @@ function citer(valeur) {
   return typeof valeur === 'string' && /^[\x20-\x7E]{1,40}$/.test(valeur) ? ` « ${valeur} »` : '';
 }
 
+/**
+ * Erreur de saisie. Son message complet est « sujet : détail », ex. « Hostname du switch : le texte est vide. ».
+ * En plus du message, elle garde :
+ *   - champ : la donnée en cause, sous forme de chemin : « switch.hostname », « vlans.1.ports »
+ *     (le 2e VLAN : on compte à partir de 0)… L'interface s'en sert pour trouver le bon champ ;
+ *   - detail : le message sans son sujet, à afficher SOUS le champ, dont l'étiquette dit déjà le sujet.
+ */
+export class ErreurSaisie extends Error {
+  constructor(champ, sujet, detail) {
+    super(`${sujet} : ${detail}`);
+    this.champ = champ;
+    this.detail = detail;
+  }
+}
+
+// Désigne un VLAN déjà vérifié dans un message : « VLAN 10 « Bureautique » » pour un VLAN saisi,
+// « VLAN natif (99) » pour les autres. On évite « VLAN n°2 », dont le numéro ne compte que les VLAN créés.
+function designer({ ref, id, nom }) {
+  return ref.chemin.startsWith('vlans.') ? `VLAN ${id} « ${nom} »` : `${ref.libelle} (${id})`;
+}
+
 /* ---------- Vérification des textes ---------- */
 
 /**
  * Vérifie un texte par liste blanche et le renvoie tel quel s'il est valide.
- * quoi : ce qui est vérifié, en tête du message (ex. « Hostname du switch ») ;
- * caractere : expression qui teste UN caractère autorisé ; regle : la règle expliquée en clair.
+ * champ : chemin de la donnée (voir ErreurSaisie) ; quoi : ce qui est vérifié, en tête du message
+ * (ex. « Hostname du switch ») ; caractere : expression qui teste UN caractère autorisé ;
+ * regle : la règle expliquée en clair.
  */
-function verifierTexte(valeur, quoi, max, caractere, regle) {
-  if (typeof valeur !== 'string') throw new Error(`${quoi} : un texte est attendu.`);
-  if (valeur === '') throw new Error(`${quoi} : le texte est vide.`);
+function verifierTexte(valeur, champ, quoi, max, caractere, regle) {
+  if (typeof valeur !== 'string') throw new ErreurSaisie(champ, quoi, 'un texte est attendu.');
+  if (valeur === '') throw new ErreurSaisie(champ, quoi, 'le texte est vide.');
   // La longueur est vérifiée AVANT le reste : un texte énorme est refusé sans être parcouru.
-  if (valeur.length > max) throw new Error(`${quoi} : ${max} caractères au maximum (${valeur.length} saisis).`);
+  if (valeur.length > max) throw new ErreurSaisie(champ, quoi, `${max} caractères au maximum (${valeur.length} saisis).`);
   // « for…of » parcourt le texte caractère par caractère (un emoji compte pour un seul caractère).
   for (const c of valeur) {
-    if (!caractere.test(c)) throw new Error(`${quoi} : ${decrireCaractere(c)} n’est pas autorisé. Règle : ${regle}.`);
+    if (!caractere.test(c)) {
+      throw new ErreurSaisie(champ, quoi, `${decrireCaractere(c)} n’est pas autorisé. Règle : ${regle}.`);
+    }
   }
   return valeur;
 }
 
-function verifierHostname(valeur, quoi) {
-  verifierTexte(valeur, quoi, HOSTNAME_LONGUEUR_MAX, CAR_HOSTNAME, REGLE_HOSTNAME);
+function verifierHostname(valeur, champ, quoi) {
+  verifierTexte(valeur, champ, quoi, HOSTNAME_LONGUEUR_MAX, CAR_HOSTNAME, REGLE_HOSTNAME);
   if (!LETTRE.test(valeur[0])) {
-    throw new Error(`${quoi} : le premier caractère doit être une lettre. Règle : ${REGLE_HOSTNAME}.`);
+    throw new ErreurSaisie(champ, quoi, `le premier caractère doit être une lettre. Règle : ${REGLE_HOSTNAME}.`);
   }
   return valeur;
 }
 
+// « ref » désigne un VLAN : { libelle: 'VLAN n°2', chemin: 'vlans.1' } (le libellé pour les messages,
+// le chemin pour savoir quel champ est en cause).
 function verifierNomVlan(valeur, ref) {
-  return verifierTexte(valeur, `Nom du ${ref}`, NOM_VLAN_LONGUEUR_MAX, CAR_NOM_VLAN, REGLE_NOM_VLAN);
+  return verifierTexte(
+    valeur,
+    `${ref.chemin}.nom`,
+    `Nom du ${ref.libelle}`,
+    NOM_VLAN_LONGUEUR_MAX,
+    CAR_NOM_VLAN,
+    REGLE_NOM_VLAN,
+  );
 }
 
 function lireDomaine(valeur) {
   if (valeur === undefined) return DEFAUTS.domaine;
-  verifierTexte(valeur, 'Domaine', DOMAINE_LONGUEUR_MAX, CAR_DOMAINE, REGLE_DOMAINE);
+  verifierTexte(valeur, 'domaine', 'Domaine', DOMAINE_LONGUEUR_MAX, CAR_DOMAINE, REGLE_DOMAINE);
   // Chaque partie entre deux points : lettre ou chiffre aux deux bouts, tirets permis au milieu.
   for (const partie of valeur.split('.')) {
     if (!/^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?$/.test(partie)) {
       // Recopier « valeur » est sans risque : la liste blanche ci-dessus vient de la vérifier.
-      throw new Error(`Domaine : « ${valeur} » est mal formé. Règle : ${REGLE_DOMAINE}.`);
+      throw new ErreurSaisie('domaine', 'Domaine', `« ${valeur} » est mal formé. Règle : ${REGLE_DOMAINE}.`);
     }
   }
   return valeur;
@@ -156,24 +189,35 @@ function lireBanniere(valeur) {
   if (valeur === undefined) return DEFAUTS.banniere;
   // Le délimiteur est testé à part, pour un message plus parlant que la règle générale.
   if (typeof valeur === 'string' && valeur.includes(DELIMITEUR_BANNIERE)) {
-    throw new Error(
-      `Bannière : le caractère « ${DELIMITEUR_BANNIERE} » est interdit, il marque le début et la fin de la bannière ` +
+    throw new ErreurSaisie(
+      'banniere',
+      'Bannière',
+      `le caractère « ${DELIMITEUR_BANNIERE} » est interdit, il marque le début et la fin de la bannière ` +
         `(banner motd ${DELIMITEUR_BANNIERE}texte${DELIMITEUR_BANNIERE}) : la suite deviendrait des commandes.`,
     );
   }
-  return verifierTexte(valeur, 'Bannière', BANNIERE_LONGUEUR_MAX, CAR_BANNIERE, REGLE_BANNIERE);
+  return verifierTexte(valeur, 'banniere', 'Bannière', BANNIERE_LONGUEUR_MAX, CAR_BANNIERE, REGLE_BANNIERE);
 }
 
 /* ---------- Vérification des nombres et des adresses ---------- */
 
 function verifierIdVlan(id, ref) {
-  const quoi = `Identifiant du ${ref}`;
-  if (!Number.isInteger(id)) throw new Error(`${quoi} : un nombre entier de 2 à 4094 est attendu.`);
+  const champ = `${ref.chemin}.id`;
+  const quoi = `Identifiant du ${ref.libelle}`;
+  if (!Number.isInteger(id)) throw new ErreurSaisie(champ, quoi, 'un nombre entier de 2 à 4094 est attendu.');
   if (id < 2 || id > 4094) {
-    throw new Error(`${quoi} : ${id} est hors limites, de 2 à 4094 (le VLAN 1, VLAN par défaut, est à laisser de côté).`);
+    throw new ErreurSaisie(
+      champ,
+      quoi,
+      `${id} est hors limites, de 2 à 4094 (le VLAN 1, VLAN par défaut, est à laisser de côté).`,
+    );
   }
   if (id >= 1002 && id <= 1005) {
-    throw new Error(`${quoi} : les VLAN 1002 à 1005 sont réservés par Cisco (anciennes technologies FDDI et Token Ring).`);
+    throw new ErreurSaisie(
+      champ,
+      quoi,
+      `les VLAN 1002 à 1005 sont réservés par Cisco (anciennes technologies FDDI et Token Ring).`,
+    );
   }
   return id;
 }
@@ -183,18 +227,21 @@ function verifierIdVlan(id, ref) {
  * Renvoie des nombres : le texte saisi ne sera jamais recopié dans la configuration.
  */
 function lireSousReseau(texte, passerelleTexte, ref) {
-  const quoi = `Sous-réseau du ${ref}`;
-  if (typeof texte !== 'string') throw new Error(`${quoi} : un texte comme « 192.168.10.0/25 » est attendu.`);
+  const champ = `${ref.chemin}.reseau`;
+  const quoi = `Sous-réseau du ${ref.libelle}`;
+  if (typeof texte !== 'string') throw new ErreurSaisie(champ, quoi, 'un texte comme « 192.168.10.0/25 » est attendu.');
   let lu;
   try {
     lu = parseCidr(texte);
   } catch (erreur) {
-    throw new Error(`${quoi} : ${erreur.message}`);
+    throw new ErreurSaisie(champ, quoi, erreur.message);
   }
   const { ip, prefix } = lu;
   if (prefix < PREFIXE_MIN || prefix > PREFIXE_MAX) {
-    throw new Error(
-      `${quoi} : préfixe /${prefix} refusé, il faut entre /${PREFIXE_MIN} et /${PREFIXE_MAX} ` +
+    throw new ErreurSaisie(
+      champ,
+      quoi,
+      `préfixe /${prefix} refusé, il faut entre /${PREFIXE_MIN} et /${PREFIXE_MAX} ` +
         '(au moins 2 adresses utilisables : la passerelle et un appareil).',
     );
   }
@@ -203,8 +250,10 @@ function lireSousReseau(texte, passerelleTexte, ref) {
   // Adresse réseau : IP ET masque (on efface la partie hôte), « >>> 0 » la garde en non signé.
   const reseau = (ip & masque) >>> 0;
   if (reseau !== ip) {
-    throw new Error(
-      `${quoi} : ${ipToString(ip)}/${prefix} n'est pas une adresse de réseau. Voulais-tu dire ${ipToString(reseau)}/${prefix} ?`,
+    throw new ErreurSaisie(
+      champ,
+      quoi,
+      `${ipToString(ip)}/${prefix} n'est pas une adresse de réseau. Voulais-tu dire ${ipToString(reseau)}/${prefix} ?`,
     );
   }
   // Broadcast : réseau OU l'inverse du masque (toute la partie hôte à 1), en non signé.
@@ -217,16 +266,22 @@ function lireSousReseau(texte, passerelleTexte, ref) {
   // Sans passerelle indiquée, on prend la convention courante : la première adresse utilisable.
   let passerelle = premiere;
   if (passerelleTexte !== undefined) {
-    if (typeof passerelleTexte !== 'string') throw new Error(`Passerelle du ${ref} : une adresse IP est attendue.`);
+    const champPasserelle = `${ref.chemin}.passerelle`;
+    const quoiPasserelle = `Passerelle du ${ref.libelle}`;
+    if (typeof passerelleTexte !== 'string') {
+      throw new ErreurSaisie(champPasserelle, quoiPasserelle, 'une adresse IP est attendue.');
+    }
     try {
       passerelle = parseIp(passerelleTexte);
     } catch (erreur) {
-      throw new Error(`Passerelle du ${ref} : ${erreur.message}`);
+      throw new ErreurSaisie(champPasserelle, quoiPasserelle, erreur.message);
     }
     // Elle doit être une adresse utilisable de CE sous-réseau (ni le réseau, ni le broadcast, ni ailleurs).
     if (passerelle < premiere || passerelle > derniere) {
-      throw new Error(
-        `Passerelle du ${ref} : ${ipToString(passerelle)} n'est pas une adresse utilisable de ` +
+      throw new ErreurSaisie(
+        champPasserelle,
+        quoiPasserelle,
+        `${ipToString(passerelle)} n'est pas une adresse utilisable de ` +
           `${ipToString(reseau)}/${prefix} (de ${ipToString(premiere)} à ${ipToString(derniere)}).`,
       );
     }
@@ -243,34 +298,50 @@ const TYPES_DNS_REFUSES = {
 };
 
 function lireDns(valeur) {
-  if (typeof valeur !== 'string') throw new Error('Serveur DNS : une adresse IP est attendue (ex. « 1.1.1.1 »).');
+  if (typeof valeur !== 'string') throw new ErreurSaisie('dns', 'Serveur DNS', 'une adresse IP est attendue (ex. « 1.1.1.1 »).');
   let ip;
   try {
     ip = parseIp(valeur);
   } catch (erreur) {
-    throw new Error(`Serveur DNS : ${erreur.message}`);
+    throw new ErreurSaisie('dns', 'Serveur DNS', erreur.message);
   }
   const type = addressType(ip);
   if (TYPES_DNS_REFUSES[type]) {
-    throw new Error(`Serveur DNS : ${ipToString(ip)} est une adresse ${TYPES_DNS_REFUSES[type]}, pas celle d'un serveur.`);
+    throw new ErreurSaisie(
+      'dns',
+      'Serveur DNS',
+      `${ipToString(ip)} est une adresse ${TYPES_DNS_REFUSES[type]}, pas celle d'un serveur.`,
+    );
   }
   return ip;
 }
 
 function lirePortSecurity(options) {
   if (options === undefined) return { ...DEFAUTS.portSecurity };
-  if (options === null || typeof options !== 'object') throw new Error('Port Security : un objet d’options est attendu.');
+  if (options === null || typeof options !== 'object') {
+    throw new ErreurSaisie('portSecurity', 'Port Security', 'un objet d’options est attendu.');
+  }
   // Chaque option absente prend sa valeur par défaut (« ?? » : seulement si elle vaut undefined ou null).
   const maximum = options.maximum ?? DEFAUTS.portSecurity.maximum;
   const violation = options.violation ?? DEFAUTS.portSecurity.violation;
   const sticky = options.sticky ?? DEFAUTS.portSecurity.sticky;
   if (!Number.isInteger(maximum) || maximum < 1 || maximum > MAC_PAR_PORT_MAX) {
-    throw new Error(`Port Security : le maximum doit être un nombre entier de 1 à ${MAC_PAR_PORT_MAX} adresses MAC par port.`);
+    throw new ErreurSaisie(
+      'portSecurity.maximum',
+      'Port Security',
+      `le maximum doit être un nombre entier de 1 à ${MAC_PAR_PORT_MAX} adresses MAC par port.`,
+    );
   }
   if (!VIOLATIONS.includes(violation)) {
-    throw new Error(`Port Security : mode de violation${citer(violation)} inconnu, choisis protect, restrict ou shutdown.`);
+    throw new ErreurSaisie(
+      'portSecurity.violation',
+      'Port Security',
+      `mode de violation${citer(violation)} inconnu, choisis protect, restrict ou shutdown.`,
+    );
   }
-  if (typeof sticky !== 'boolean') throw new Error('Port Security : sticky doit valoir true (oui) ou false (non).');
+  if (typeof sticky !== 'boolean') {
+    throw new ErreurSaisie('portSecurity.sticky', 'Port Security', 'sticky doit valoir true (oui) ou false (non).');
+  }
   return { maximum, violation, sticky };
 }
 
@@ -280,14 +351,17 @@ function lirePortSecurity(options) {
 // [1-9]\d? : un numéro de 1 à 99 sans zéro en tête ; on vérifie ensuite qu'il existe sur le modèle.
 const PLAGE = /^(fa|gi)0\/([1-9]\d?)(?: ?- ?([1-9]\d?))?$/i;
 
+// Longueur maximale d'une plage de ports saisie (« Fa0/10 - 24 » en fait 11) : exportée pour le maxlength du HTML.
+export const PLAGE_LONGUEUR_MAX = 20;
+
 /**
  * Lit une plage de ports. Renvoie { type, debut, fin } : un seul type de port, numéros croissants.
  */
-function lirePlage(texte, quoi) {
+function lirePlage(texte, champ, quoi) {
   const exemple = 'écris par exemple « Fa0/1-12 » ou « Gi0/2 »';
-  // 20 caractères suffisent largement (« Fa0/10 - 24 » en fait 11) : au-delà, on refuse sans analyser.
-  const morceaux = typeof texte === 'string' && texte.length <= 20 ? texte.match(PLAGE) : null;
-  if (!morceaux) throw new Error(`${quoi} :${citer(texte)} n'est pas une plage valide, ${exemple}.`);
+  // Au-delà de la longueur maximale, on refuse sans analyser.
+  const morceaux = typeof texte === 'string' && texte.length <= PLAGE_LONGUEUR_MAX ? texte.match(PLAGE) : null;
+  if (!morceaux) throw new ErreurSaisie(champ, quoi, `plage${citer(texte)} invalide, ${exemple}.`);
   // Le type d'après l'abréviation : Fa ou Gi, quelle que soit la casse.
   const type = TYPES_PORTS.find((t) => t.court.toLowerCase() === morceaux[1].toLowerCase());
   const debut = Number(morceaux[2]);
@@ -296,13 +370,19 @@ function lirePlage(texte, quoi) {
   // Le plus grand des deux numéros doit exister sur le 2960-24TT.
   const plusGrand = Math.max(debut, fin);
   if (plusGrand > type.nombre) {
-    throw new Error(
-      `${quoi} : le port ${type.court}0/${plusGrand} n'existe pas sur un 2960-24TT ` +
+    throw new ErreurSaisie(
+      champ,
+      quoi,
+      `le port ${type.court}0/${plusGrand} n'existe pas sur un 2960-24TT ` +
         `(${type.court}0/1 à ${type.court}0/${type.nombre}).`,
     );
   }
   if (debut > fin) {
-    throw new Error(`${quoi} : la plage ${type.court}0/${debut}-${fin} est à l'envers, écris ${type.court}0/${fin}-${debut}.`);
+    throw new ErreurSaisie(
+      champ,
+      quoi,
+      `la plage ${type.court}0/${debut}-${fin} est à l'envers, écris ${type.court}0/${fin}-${debut}.`,
+    );
   }
   return { type, debut, fin };
 }
@@ -319,8 +399,14 @@ function attribuerPorts(vlans, trunk) {
   for (const vlan of vlans) {
     for (let n = vlan.plage.debut; n <= vlan.plage.fin; n++) {
       const port = nomPort(vlan.plage.type, n);
-      if (occupants.has(port)) throw new Error(`Ports du ${vlan.ref} : ${port} est déjà pris par ${occupants.get(port)}.`);
-      occupants.set(port, `le ${vlan.ref}`);
+      if (occupants.has(port)) {
+        throw new ErreurSaisie(
+          `${vlan.ref.chemin}.ports`,
+          `Ports du ${vlan.ref.libelle}`,
+          `${port} est déjà pris par ${occupants.get(port)}.`,
+        );
+      }
+      occupants.set(port, `le ${designer(vlan)}`);
     }
   }
   return occupants;
@@ -356,17 +442,23 @@ function lireVlanSimple(valeur, defaut, ref) {
 }
 
 function lireManagement(valeur) {
-  const ref = 'VLAN de management';
+  const ref = { libelle: 'VLAN de management', chemin: 'management' };
   if (valeur === null || typeof valeur !== 'object') {
-    throw new Error(`${ref} manquant : indique son identifiant et son sous-réseau (ex. « 192.168.10.224/28 »).`);
+    throw new ErreurSaisie(
+      'management',
+      `${ref.libelle} manquant`,
+      'indique son identifiant et son sous-réseau (ex. « 192.168.10.224/28 »).',
+    );
   }
   const id = verifierIdVlan(valeur.id, ref);
   const nom = verifierNomVlan(valeur.nom ?? DEFAUTS.nomManagement, ref);
   const sousReseau = lireSousReseau(valeur.reseau, valeur.passerelle, ref);
   // Le switch prend la dernière adresse utilisable : la passerelle (le routeur) doit en avoir une autre.
   if (sousReseau.passerelle === sousReseau.derniere) {
-    throw new Error(
-      `Passerelle du ${ref} : ${ipToString(sousReseau.passerelle)} est l'adresse du switch ` +
+    throw new ErreurSaisie(
+      'management.passerelle',
+      `Passerelle du ${ref.libelle}`,
+      `${ipToString(sousReseau.passerelle)} est l'adresse du switch ` +
         '(dernière adresse utilisable), choisis-en une autre.',
     );
   }
@@ -374,19 +466,25 @@ function lireManagement(valeur) {
 }
 
 function lireVlans(liste) {
-  if (!Array.isArray(liste) || liste.length === 0) throw new Error('Aucun VLAN : ajoute au moins un VLAN avec ses ports.');
+  if (!Array.isArray(liste) || liste.length === 0) {
+    throw new ErreurSaisie('vlans', 'Aucun VLAN', 'ajoute au moins un VLAN avec ses ports.');
+  }
   if (liste.length > VLANS_MAX) {
-    throw new Error(`Trop de VLAN : ${VLANS_MAX} au maximum (un port chacun, plus le trunk), ${liste.length} reçus.`);
+    throw new ErreurSaisie(
+      'vlans',
+      'Trop de VLAN',
+      `${VLANS_MAX} au maximum (un port chacun, plus le trunk), ${liste.length} reçus.`,
+    );
   }
   return liste.map((vlan, i) => {
-    // Numéro « humain » (à partir de 1), pour retrouver la ligne en cause.
-    const ref = `VLAN n°${i + 1}`;
+    // Libellé « humain » (on compte à partir de 1) et chemin (on compte à partir de 0, comme le tableau).
+    const ref = { libelle: `VLAN n°${i + 1}`, chemin: `vlans.${i}` };
     return {
       ref,
       id: verifierIdVlan(vlan?.id, ref),
       nom: verifierNomVlan(vlan?.nom, ref),
       sousReseau: lireSousReseau(vlan?.reseau, vlan?.passerelle, ref),
-      plage: lirePlage(vlan?.ports, `Ports du ${ref}`),
+      plage: lirePlage(vlan?.ports, `${ref.chemin}.ports`, `Ports du ${ref.libelle}`),
     };
   });
 }
@@ -396,12 +494,17 @@ function verifierDoublons(vlans) {
   const ids = new Map();
   const noms = new Map();
   for (const vlan of vlans) {
-    if (ids.has(vlan.id)) throw new Error(`Identifiant du ${vlan.ref} : ${vlan.id} est déjà pris par le ${ids.get(vlan.id)}.`);
-    ids.set(vlan.id, vlan.ref);
+    const { ref, id, nom } = vlan;
+    if (ids.has(id)) {
+      throw new ErreurSaisie(`${ref.chemin}.id`, `Identifiant du ${ref.libelle}`, `${id} est déjà pris par le ${ids.get(id)}.`);
+    }
+    ids.set(id, designer(vlan));
     // « Bureau » et « BUREAU » sont considérés comme le même nom.
-    const cle = vlan.nom.toLowerCase();
-    if (noms.has(cle)) throw new Error(`Nom du ${vlan.ref} : « ${vlan.nom} » est déjà pris par le ${noms.get(cle)}.`);
-    noms.set(cle, vlan.ref);
+    const cle = nom.toLowerCase();
+    if (noms.has(cle)) {
+      throw new ErreurSaisie(`${ref.chemin}.nom`, `Nom du ${ref.libelle}`, `« ${nom} » est déjà pris par le ${noms.get(cle)}.`);
+    }
+    noms.set(cle, designer(vlan));
   }
 }
 
@@ -413,9 +516,10 @@ function verifierChevauchements(vlans) {
       const b = vlans[j].sousReseau;
       // Deux plages [début, fin] se recouvrent si chacune commence avant que l'autre ne finisse.
       if (a.reseau <= b.broadcast && b.reseau <= a.broadcast) {
-        throw new Error(
-          `Sous-réseau du ${vlans[i].ref} : ${ipToString(a.reseau)}/${a.prefixe} chevauche celui du ` +
-            `${vlans[j].ref} (${ipToString(b.reseau)}/${b.prefixe}).`,
+        throw new ErreurSaisie(
+          `${vlans[i].ref.chemin}.reseau`,
+          `Sous-réseau du ${vlans[i].ref.libelle}`,
+          `${ipToString(a.reseau)}/${a.prefixe} chevauche celui du ${designer(vlans[j])} (${ipToString(b.reseau)}/${b.prefixe}).`,
         );
       }
     }
@@ -423,28 +527,28 @@ function verifierChevauchements(vlans) {
 }
 
 /**
- * Vérifie toute l'entrée et la convertit en valeurs sûres. Lève une erreur claire au premier problème.
+ * Vérifie toute l'entrée et la convertit en valeurs sûres. Lève une ErreurSaisie claire au premier problème.
  */
 function lireEntree(entree) {
   if (entree === null || typeof entree !== 'object') {
-    throw new Error('Entrée invalide : un objet décrivant le switch et le routeur est attendu.');
+    throw new ErreurSaisie('', 'Entrée invalide', 'un objet décrivant le switch et le routeur est attendu.');
   }
   // « ?. » : si entree.switch est absent, on lit undefined au lieu de planter.
-  const hostnameSwitch = verifierHostname(entree.switch?.hostname, 'Hostname du switch');
-  const hostnameRouteur = verifierHostname(entree.routeur?.hostname, 'Hostname du routeur');
+  const hostnameSwitch = verifierHostname(entree.switch?.hostname, 'switch.hostname', 'Hostname du switch');
+  const hostnameRouteur = verifierHostname(entree.routeur?.hostname, 'routeur.hostname', 'Hostname du routeur');
   if (hostnameSwitch.toLowerCase() === hostnameRouteur.toLowerCase()) {
-    throw new Error('Hostname du routeur : il doit être différent de celui du switch.');
+    throw new ErreurSaisie('routeur.hostname', 'Hostname du routeur', 'il doit être différent de celui du switch.');
   }
-  const natif = lireVlanSimple(entree.vlanNatif, DEFAUTS.vlanNatif, 'VLAN natif');
-  const parking = lireVlanSimple(entree.vlanParking, DEFAUTS.vlanParking, 'VLAN parking');
+  const natif = lireVlanSimple(entree.vlanNatif, DEFAUTS.vlanNatif, { libelle: 'VLAN natif', chemin: 'vlanNatif' });
+  const parking = lireVlanSimple(entree.vlanParking, DEFAUTS.vlanParking, { libelle: 'VLAN parking', chemin: 'vlanParking' });
   const management = lireManagement(entree.management);
   const vlans = lireVlans(entree.vlans);
   // Ordre d'enregistrement : natif, parking, management, puis les VLAN saisis.
   verifierDoublons([natif, parking, management, ...vlans]);
   verifierChevauchements([...vlans, management]);
 
-  const trunk = lirePlage(entree.switch?.trunk ?? DEFAUTS.trunk, 'Port trunk');
-  if (trunk.debut !== trunk.fin) throw new Error('Port trunk : un seul port est attendu (ex. « Gi0/1 »).');
+  const trunk = lirePlage(entree.switch?.trunk ?? DEFAUTS.trunk, 'switch.trunk', 'Port trunk');
+  if (trunk.debut !== trunk.fin) throw new ErreurSaisie('switch.trunk', 'Port trunk', 'un seul port est attendu (ex. « Gi0/1 »).');
   const occupants = attribuerPorts(vlans, trunk);
 
   return {
@@ -752,4 +856,84 @@ export function depuisPlanVlsm(plan, choix) {
   });
   // Pas de vérification ici : genererConfigurations() revérifie tout, y compris ce qui vient du plan.
   return vlans;
+}
+
+/**
+ * Partage les ports FastEthernet (Fa0/1 à Fa0/24) entre « nombre » VLAN, en blocs qui se suivent.
+ * Chacun reçoit la même part ; le reste de la division va, un port chacun, aux premiers.
+ * Ex. 5 VLAN : 24 = 5 × 4 + 4 → 5, 5, 5, 5 et 4 ports → Fa0/1-5, Fa0/6-10, Fa0/11-15, Fa0/16-20, Fa0/21-24.
+ */
+function repartirPorts(nombre) {
+  const fa = TYPES_PORTS[0];
+  if (nombre === 0) return [];
+  // Part de chaque VLAN : division entière (24 ÷ 5 → 4).
+  const part = Math.floor(fa.nombre / nombre);
+  // Ports qui restent après ce partage (24 − 5 × 4 → 4).
+  const reste = fa.nombre % nombre;
+  // Premier port du prochain bloc.
+  let debut = 1;
+  return Array.from({ length: nombre }, (_, i) => {
+    // Les « reste » premiers VLAN ont un port de plus.
+    const taille = part + (i < reste ? 1 : 0);
+    // Dernier port du bloc : un bloc de 5 commençant à 1 finit à 5.
+    const fin = debut + taille - 1;
+    const plage = taille === 1 ? `Fa0/${debut}` : `Fa0/${debut}-${fin}`;
+    // Le bloc suivant commence juste après.
+    debut = fin + 1;
+    return plage;
+  });
+}
+
+/**
+ * Propose des réglages de départ pour un plan VLSM. L'utilisateur peut ensuite tout modifier.
+ *   - un VLAN par sous-réseau, numéroté 10, 20, 30… dans l'ordre du plan ;
+ *   - les /30 (2 adresses : en général un lien point à point entre routeurs) ne sont pas cochés,
+ *     ni les sous-réseaux au-delà du 24e (chaque VLAN coché a besoin d'au moins un port) ;
+ *   - les ports Fa0/1 à Fa0/24 sont partagés entre les VLAN cochés (Gi0/1 reste au trunk) ;
+ *   - le management prend le plus grand bloc libre du plan et le numéro qui suit ceux des VLAN.
+ * @returns {{ vlans: {creer: boolean, id: number, nom: string, ports: string}[], management: {id: number, nom: string, reseau: string} }}
+ */
+export function propositionsPourPlan(plan) {
+  const sousReseaux = plan?.subnets;
+  if (!Array.isArray(sousReseaux)) throw new Error('Plan VLSM invalide : utilise le résultat de planVlsm().');
+
+  // 1. Quels sous-réseaux deviennent des VLAN ? On compte les cases cochées au fur et à mesure.
+  let coches = 0;
+  const creer = sousReseaux.map((sousReseau) => {
+    const oui = sousReseau.prefix < 30 && coches < TYPES_PORTS[0].nombre;
+    if (oui) coches++;
+    return oui;
+  });
+
+  // 2. Une plage de ports par VLAN coché, distribuées dans l'ordre.
+  const plages = repartirPorts(coches);
+  let prochainePlage = 0;
+  const vlans = sousReseaux.map((sousReseau, i) => {
+    // 10 pour le 1er sous-réseau, 20 pour le 2e… (jamais 99 ni 999 : ce sont des multiples de 10).
+    const id = (i + 1) * 10;
+    return {
+      creer: creer[i],
+      id,
+      nom: nomVlanDepuis(sousReseau.name) || `VLAN${id}`,
+      ports: creer[i] ? plages[prochainePlage++] : '',
+    };
+  });
+
+  // 3. Management : le plus grand bloc libre, c'est-à-dire celui qui a le plus petit préfixe (au plus /30).
+  const blocs = (plan.free?.blocks ?? [])
+    .map((cidr) => ({ cidr, prefixe: Number(cidr.split('/')[1]) }))
+    .filter((bloc) => bloc.prefixe <= PREFIXE_MAX);
+  // À taille égale, on garde le premier bloc (« < » strict).
+  const plusGrand = blocs.reduce((meilleur, bloc) => (bloc.prefixe < meilleur.prefixe ? bloc : meilleur), blocs[0]);
+
+  return {
+    vlans,
+    management: {
+      // Le numéro qui suit ceux des VLAN : 4 sous-réseaux (10 à 40) → 50.
+      id: (sousReseaux.length + 1) * 10,
+      nom: DEFAUTS.nomManagement,
+      // Aucun bloc libre assez grand : champ vide, l'utilisateur en choisira un.
+      reseau: plusGrand?.cidr ?? '',
+    },
+  };
 }
