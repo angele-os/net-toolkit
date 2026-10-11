@@ -11,8 +11,6 @@ Calculateur IPv4 et VLSM qui fonctionne entièrement dans le navigateur : analys
 
 **Démo : <https://reseau.ange-bonkoski.fr>**
 
-![Capture d'écran : analyse de l'adresse 192.168.1.37/24 avec masque, broadcast, plage utilisable et représentation binaire](docs/capture.png)
-
 HTML, CSS et JavaScript sans framework, sans dépendance npm.
 
 ### Fonctionnalités
@@ -26,6 +24,8 @@ HTML, CSS et JavaScript sans framework, sans dépendance npm.
 - Type d'adresse (privée RFC 1918, publique, loopback, lien local, multicast, réservée) et classe historique (A à E).
 - Représentation binaire, avec les bits réseau mis en évidence, et hexadécimale.
 
+![Capture d'écran : analyse de l'adresse 192.168.1.37/27, avec adresse réseau, masque, broadcast, plage utilisable et représentation binaire](docs/capture-ip.png)
+
 #### Plan d'adressage VLSM
 
 - Un réseau de départ et une liste de besoins (nom et nombre d'hôtes), jusqu'à 256 sous-réseaux.
@@ -33,6 +33,8 @@ HTML, CSS et JavaScript sans framework, sans dépendance npm.
 - Barre de répartition visuelle du réseau de départ.
 - Espace restant découpé en blocs CIDR réutilisables.
 - Messages d'erreur explicites : réseau de départ mal aligné (avec l'adresse correcte suggérée), plan trop grand (avec le nombre d'adresses manquantes).
+
+![Capture d'écran : plan VLSM de 192.168.10.0/24 pour quatre besoins, avec barre de répartition, tableau des sous-réseaux et blocs libres](docs/capture-vlsm.png)
 
 #### Export et utilisation
 
@@ -65,6 +67,8 @@ Résultat :
 
 Espace libre : 28 adresses, de `192.168.10.228` à `192.168.10.255`, soit les blocs `192.168.10.228/30`, `192.168.10.232/29` et `192.168.10.240/28`.
 
+C'est ce plan qui apparaît sur la [capture du plan VLSM](docs/capture-vlsm.png) ci-dessus.
+
 ### Lancer les tests en local
 
 Prérequis : Node.js 24 ou plus récent. Aucune dépendance à installer : les tests utilisent `node:test`, le lanceur de tests intégré à Node.js.
@@ -96,7 +100,7 @@ Code distribué sous licence MIT : voir [LICENSE](LICENSE). Les polices Inter et
 
 IPv4 and VLSM calculator that runs entirely in the browser: analyse an address, then split a network into subnets sized for each requirement.
 
-**Demo: <https://reseau.ange-bonkoski.fr>** (the interface is in French; see the screenshot above).
+**Demo: <https://reseau.ange-bonkoski.fr>** (the interface is in French; see the screenshots of the [address analysis](docs/capture-ip.png) and the [VLSM plan](docs/capture-vlsm.png)).
 
 Plain HTML, CSS and JavaScript: no framework, no npm dependencies.
 
@@ -149,6 +153,8 @@ Result:
 | WAN link | 2 | 192.168.10.224/30 | .225 to .226 | .227 | 100% |
 
 Free space: 28 addresses, from `192.168.10.228` to `192.168.10.255`, i.e. blocks `192.168.10.228/30`, `192.168.10.232/29` and `192.168.10.240/28`.
+
+This is the plan shown in the [VLSM screenshot](docs/capture-vlsm.png).
 
 ### Running the tests locally
 
