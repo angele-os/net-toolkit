@@ -2,7 +2,7 @@
 // caractères invisibles. On lit les fichiers comme du texte : pas besoin de navigateur.
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { LONGUEUR_MAX_ADRESSE } from '../js/ip.js';
 import { NOM_LONGUEUR_MAX, HOTES_MAX } from '../js/vlsm.js';
 
@@ -101,12 +101,17 @@ test('la page ignore l’adresse : aucun code ne lit ni n’écrit location, le 
   }
 });
 
+// Fichiers d'un dossier ET de ses sous-dossiers (ex. tests/fixtures/), sans les dossiers eux-mêmes
+// ni les fichiers cachés (ex. .DS_Store créé par le Finder de macOS).
+function fichiersDe(dossier) {
+  return readdirSync(new URL(`../${dossier}/`, import.meta.url), { recursive: true })
+    .map((chemin) => `${dossier}/${chemin}`)
+    .filter((chemin) => !chemin.split('/').at(-1).startsWith('.'))
+    .filter((chemin) => statSync(new URL(`../${chemin}`, import.meta.url)).isFile());
+}
+
 test('aucun caractère invisible ou de contrôle dans le code source (Trojan Source)', () => {
-  const fichiers = [
-    'index.html', '404.html', 'css/style.css',
-    ...readdirSync(new URL('../js/', import.meta.url)).map((f) => `js/${f}`),
-    ...readdirSync(new URL('../tests/', import.meta.url)).map((f) => `tests/${f}`),
-  ];
+  const fichiers = ['index.html', '404.html', 'css/style.css', ...fichiersDe('js'), ...fichiersDe('tests')];
   for (const fichier of fichiers) {
     lire(fichier).split('\n').forEach((ligne, i) => {
       // Cf (mise en forme invisible) ou Cc (contrôle) sauf la tabulation et le retour chariot.

@@ -1,0 +1,99 @@
+!==================================================================
+! net-toolkit : configuration du routeur R-SIEGE
+! Modele : Cisco ISR 4321 (IOS XE, meme syntaxe qu'IOS 15)
+! 1. Remplace chaque <A_REMPLACER> (voir les commentaires SECRET).
+! 2. Colle le tout en mode configuration globale (enable, puis configure terminal).
+!==================================================================
+!
+! ---------- 1. Base et durcissement ----------
+hostname R-SIEGE
+! Pas de recherche DNS sur une commande mal tapee (evite une attente inutile).
+no ip domain-lookup
+! Masque les mots de passe de type "password" dans la configuration (chiffrement faible, type 7).
+service password-encryption
+! SECRET : mot de passe du mode privilegie, stocke sous forme de hachage.
+! Sur un IOS recent, prefere "enable algorithm-type scrypt secret" (non pris en charge par Packet Tracer).
+enable secret <A_REMPLACER>
+! SECRET : compte local pour la console et SSH (1er marqueur = nom d'utilisateur, 2e = mot de passe).
+username <A_REMPLACER> secret <A_REMPLACER>
+! Le domaine et le hostname servent a nommer la cle RSA de SSH.
+ip domain-name entreprise.lan
+! Cle RSA de 2048 bits, indispensable a SSH. Si une cle existe deja, IOS demande confirmation.
+crypto key generate rsa general-keys modulus 2048
+! SSH version 2 uniquement : la version 1 a des failles connues.
+ip ssh version 2
+! Avertissement affiche avant toute connexion.
+banner motd #Acces reserve au personnel autorise.#
+!
+! Console : compte local, deconnexion apres 5 min d'inactivite,
+! messages systeme qui ne coupent pas la saisie (logging synchronous).
+line console 0
+ login local
+ exec-timeout 5 0
+ logging synchronous
+!
+! Acces a distance (VTY) : SSH uniquement, Telnet refuse car il circule en clair.
+line vty 0 4
+ login local
+ transport input ssh
+ exec-timeout 5 0
+ logging synchronous
+!
+! ---------- 2. Interface physique vers le switch ----------
+! Pas d'adresse ici : chaque VLAN a la sienne sur une sous-interface.
+interface GigabitEthernet0/0/0
+ description Trunk vers SW-SIEGE GigabitEthernet0/1
+ no ip address
+ no shutdown
+!
+! ---------- 3. Sous-interfaces 802.1Q (une par VLAN) ----------
+! Chaque sous-interface lit les trames etiquetees de son VLAN ; son adresse est la passerelle du VLAN.
+interface GigabitEthernet0/0/0.10
+ description VLAN 10 Bureautique
+ encapsulation dot1Q 10
+ ip address 192.168.10.1 255.255.255.128
+!
+interface GigabitEthernet0/0/0.20
+ description VLAN 20 Serveurs
+ encapsulation dot1Q 20
+ ip address 192.168.10.129 255.255.255.192
+!
+interface GigabitEthernet0/0/0.30
+ description VLAN 30 Wi-Fi_invites
+ encapsulation dot1Q 30
+ ip address 192.168.10.193 255.255.255.224
+!
+interface GigabitEthernet0/0/0.90
+ description VLAN 90 MANAGEMENT
+ encapsulation dot1Q 90
+ ip address 192.168.10.225 255.255.255.240
+!
+! VLAN natif : meme numero que sur le switch, sans adresse IP (aucun trafic utile n'y circule).
+interface GigabitEthernet0/0/0.99
+ description VLAN 99 NATIVE
+ encapsulation dot1Q 99 native
+!
+! ---------- 4. DHCP ----------
+! Exclusions d'abord : la passerelle ne sera jamais distribuee a un poste.
+ip dhcp excluded-address 192.168.10.1
+ip dhcp excluded-address 192.168.10.129
+ip dhcp excluded-address 192.168.10.193
+!
+! Un pool par VLAN de postes. Pas de pool pour le management (VLAN 90) : adresses fixes.
+ip dhcp pool VLAN10_Bureautique
+ network 192.168.10.0 255.255.255.128
+ default-router 192.168.10.1
+ dns-server 1.1.1.1
+!
+ip dhcp pool VLAN20_Serveurs
+ network 192.168.10.128 255.255.255.192
+ default-router 192.168.10.129
+ dns-server 1.1.1.1
+!
+ip dhcp pool VLAN30_Wi-Fi_invites
+ network 192.168.10.192 255.255.255.224
+ default-router 192.168.10.193
+ dns-server 1.1.1.1
+!
+end
+! Pour garder la configuration apres un redemarrage : copy running-config startup-config

@@ -1,0 +1,145 @@
+!==================================================================
+! net-toolkit : configuration du switch SW-SIEGE
+! Modele : Cisco Catalyst 2960-24TT (Fa0/1-24, Gi0/1-2), syntaxe IOS 15
+! 1. Remplace chaque <A_REMPLACER> (voir les commentaires SECRET).
+! 2. Colle le tout en mode configuration globale (enable, puis configure terminal).
+!==================================================================
+!
+! ---------- 1. Base et durcissement ----------
+hostname SW-SIEGE
+! Pas de recherche DNS sur une commande mal tapee (evite une attente inutile).
+no ip domain-lookup
+! Masque les mots de passe de type "password" dans la configuration (chiffrement faible, type 7).
+service password-encryption
+! SECRET : mot de passe du mode privilegie, stocke sous forme de hachage.
+! Sur un IOS recent, prefere "enable algorithm-type scrypt secret" (non pris en charge par Packet Tracer).
+enable secret <A_REMPLACER>
+! SECRET : compte local pour la console et SSH (1er marqueur = nom d'utilisateur, 2e = mot de passe).
+username <A_REMPLACER> secret <A_REMPLACER>
+! Le domaine et le hostname servent a nommer la cle RSA de SSH.
+ip domain-name entreprise.lan
+! Cle RSA de 2048 bits, indispensable a SSH. Si une cle existe deja, IOS demande confirmation.
+crypto key generate rsa general-keys modulus 2048
+! SSH version 2 uniquement : la version 1 a des failles connues.
+ip ssh version 2
+! Avertissement affiche avant toute connexion.
+banner motd #Acces reserve au personnel autorise.#
+!
+! Console : compte local, deconnexion apres 5 min d'inactivite,
+! messages systeme qui ne coupent pas la saisie (logging synchronous).
+line console 0
+ login local
+ exec-timeout 5 0
+ logging synchronous
+!
+! Acces a distance (VTY) : SSH uniquement, Telnet refuse car il circule en clair.
+line vty 0 15
+ login local
+ transport input ssh
+ exec-timeout 5 0
+ logging synchronous
+!
+! ---------- 2. VLAN ----------
+! VTP transparent : le switch ignore les annonces VTP (un autre switch ne peut pas effacer ses VLAN)
+! et accepte les VLAN etendus (1006 a 4094).
+vtp mode transparent
+vlan 10
+ name Bureautique
+vlan 20
+ name Serveurs
+vlan 30
+ name Wi-Fi_invites
+! VLAN de management : adresse d'administration du switch.
+vlan 90
+ name MANAGEMENT
+! VLAN natif du trunk : trames non etiquetees, aucun appareil dedans.
+vlan 99
+ name NATIVE
+! VLAN parking : accueille les ports inutilises, il n'est route nulle part.
+vlan 999
+ name PARKING
+!
+! ---------- 3. Ports access (postes de travail) ----------
+! Port Security : 2 adresse(s) MAC au maximum par port ; en cas d'intrus, shutdown :
+! port coupe (err-disabled) jusqu'a intervention.
+! Sticky : les adresses MAC apprises sont ecrites dans la configuration.
+! PortFast : le port transmet tout de suite (il relie un poste, pas un switch).
+! BPDU Guard : le port se coupe s'il recoit un BPDU, c'est-a-dire si on y branche un switch.
+interface range FastEthernet0/1 - 12
+ description VLAN 10 Bureautique
+ switchport mode access
+ switchport access vlan 10
+ switchport port-security
+ switchport port-security maximum 2
+ switchport port-security violation shutdown
+ switchport port-security mac-address sticky
+ spanning-tree portfast
+ spanning-tree bpduguard enable
+ no shutdown
+!
+interface range FastEthernet0/13 - 18
+ description VLAN 20 Serveurs
+ switchport mode access
+ switchport access vlan 20
+ switchport port-security
+ switchport port-security maximum 2
+ switchport port-security violation shutdown
+ switchport port-security mac-address sticky
+ spanning-tree portfast
+ spanning-tree bpduguard enable
+ no shutdown
+!
+interface range FastEthernet0/19 - 22
+ description VLAN 30 Wi-Fi_invites
+ switchport mode access
+ switchport access vlan 30
+ switchport port-security
+ switchport port-security maximum 2
+ switchport port-security violation shutdown
+ switchport port-security mac-address sticky
+ spanning-tree portfast
+ spanning-tree bpduguard enable
+ no shutdown
+!
+! ---------- 4. Trunk vers le routeur R-SIEGE ----------
+! Le 2960 ne connait que 802.1Q : "switchport trunk encapsulation dot1q" n'existe pas sur ce modele.
+! nonegotiate : DTP desactive, le trunk est impose et jamais negocie.
+! Seuls les VLAN utiles passent : le VLAN parking 999 est exclu.
+interface GigabitEthernet0/1
+ description Trunk vers R-SIEGE GigabitEthernet0/0/0
+ switchport mode trunk
+ switchport nonegotiate
+ switchport trunk native vlan 99
+ switchport trunk allowed vlan 10,20,30,90,99
+ no shutdown
+!
+! ---------- 5. Ports inutilises ----------
+! Coupes et ranges dans le VLAN parking 999 : y brancher un cable ne donne acces a rien.
+interface range FastEthernet0/23 - 24
+ description Port inutilise
+ switchport mode access
+ switchport access vlan 999
+ shutdown
+!
+interface GigabitEthernet0/2
+ description Port inutilise
+ switchport mode access
+ switchport access vlan 999
+ shutdown
+!
+! ---------- 6. Spanning Tree ----------
+! Rapid PVST+ : un arbre RSTP par VLAN, reconvergence en quelques secondes.
+spanning-tree mode rapid-pvst
+!
+! ---------- 7. Management ----------
+! Adresse d'administration du switch : derniere adresse utilisable du VLAN 90.
+interface Vlan90
+ description VLAN 90 MANAGEMENT
+ ip address 192.168.10.238 255.255.255.240
+ no shutdown
+!
+! Passerelle pour joindre le switch depuis les autres VLAN (sous-interface du routeur).
+ip default-gateway 192.168.10.225
+!
+end
+! Pour garder la configuration apres un redemarrage : copy running-config startup-config
