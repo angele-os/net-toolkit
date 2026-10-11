@@ -146,9 +146,9 @@ describe('limites de saisie', () => {
 describe('caractères invisibles et de contrôle dans les noms', () => {
   const interdits = {
     'U+202E (inversion du sens du texte, « Trojan Source »)': ['Admin\u202Etxt.exe', '202E'],
-    'U+200B (espace sans chasse)': ['Ad​min', '200B'],
+    'U+200B (espace sans chasse)': ['Ad\u200Bmin', '200B'],
     'U+2066 (isolat gauche-à-droite)': ['\u2066Admin', '2066'],
-    'U+FEFF (indicateur d’ordre des octets) au milieu': ['Ad﻿min', 'FEFF'],
+    'U+FEFF (indicateur d’ordre des octets) au milieu': ['Ad\uFEFFmin', 'FEFF'],
     'U+0000 (caractère nul)': ['Ad\u0000min', '0000'],
     'U+0009 (tabulation) au milieu': ['Ad\tmin', '0009'],
     'U+001B (échappement)': ['Ad\u001B[31mmin', '001B'],

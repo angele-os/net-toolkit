@@ -9,6 +9,16 @@
   <meta name="theme-color" content="#FFF8DF">
   <meta name="description" content="Calculateur IPv4 et VLSM : adresse réseau, broadcast, masque, plage utilisable et plan d'adressage. Calculs faits dans le navigateur.">
   <title>net-toolkit — Calculateur IPv4 &amp; VLSM</title>
+  <!-- Référencement : adresse officielle de la page (les liens avec #… pointent vers la même page) -->
+  <link rel="canonical" href="https://reseau.ange-bonkoski.fr/">
+  <!-- Open Graph : aperçu quand le lien est partagé (réseaux sociaux, messageries). L'image viendra plus tard. -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://reseau.ange-bonkoski.fr/">
+  <meta property="og:site_name" content="net-toolkit">
+  <meta property="og:locale" content="fr_FR">
+  <meta property="og:title" content="Calculateur IPv4 &amp; VLSM — net-toolkit">
+  <meta property="og:description" content="Analyse d'adresse IPv4 et plan d'adressage VLSM, avec export CSV. Tout est calculé dans le navigateur : rien n'est envoyé.">
+  <meta name="twitter:card" content="summary">
   <!-- Favicon dans un fichier : la CSP n'a plus besoin d'autoriser les images data: -->
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="preload" href="fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
@@ -36,6 +46,8 @@
       <noscript>
         <p class="noscript">Cet outil a besoin de JavaScript pour faire les calculs : il ne fonctionne pas sans. Active JavaScript dans ton navigateur, puis recharge la page. Aucune donnée n'est envoyée : tout est calculé sur ton appareil.</p>
       </noscript>
+      <!-- Erreur de lecture d'un lien partagé (#…) : rempli par app.js avec textContent -->
+      <p class="field-error lien-erreur" id="lien-erreur" role="alert"></p>
       <div class="tabs" role="tablist" aria-label="Outils">
         <button class="tab" type="button" role="tab" id="tab-ip" aria-controls="panel-ip" aria-selected="true">Analyser une IP</button>
         <button class="tab" type="button" role="tab" id="tab-vlsm" aria-controls="panel-vlsm" aria-selected="false" tabindex="-1">Plan VLSM</button>
@@ -43,6 +55,13 @@
 
       <!-- ===== Onglet 1 : analyser une IP ===== -->
       <section class="tabpanel" id="panel-ip" role="tabpanel" aria-labelledby="tab-ip" tabindex="0">
+        <div class="exemples" role="group" aria-labelledby="exemples-ip-titre">
+          <span class="exemples__titre" id="exemples-ip-titre">Exemples :</span>
+          <button class="pill js-exemple-ip" type="button" data-adresse="10.0.0.1/30">Lien point à point /30</button>
+          <button class="pill js-exemple-ip" type="button" data-adresse="192.168.1.10/24">LAN /24</button>
+          <button class="pill js-exemple-ip" type="button" data-adresse="10.0.0.0/8">Gros réseau /8</button>
+        </div>
+
         <form class="form" id="form-ip" novalidate>
           <div class="field">
             <label for="ip-input">Adresse IP et préfixe</label>
@@ -59,8 +78,16 @@
 
         <section class="results" id="result-ip" aria-labelledby="result-ip-titre" hidden>
           <div class="results-head">
-            <h2 id="result-ip-titre">Résultat</h2>
+            <div>
+              <h2 id="result-ip-titre">Résultat</h2>
+              <p class="results-sub mono" id="ip-resume"></p>
+            </div>
             <div class="actions">
+              <button class="btn btn--secondary btn--sm btn-copy btn-lien" type="button">
+                <svg class="icon icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                <svg class="icon icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+                <span>Copier le lien</span>
+              </button>
               <button class="btn btn--secondary btn--sm btn-copy" type="button" data-export="ip">
                 <svg class="icon icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                 <svg class="icon icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
@@ -95,6 +122,11 @@
 
       <!-- ===== Onglet 2 : plan VLSM ===== -->
       <section class="tabpanel" id="panel-vlsm" role="tabpanel" aria-labelledby="tab-vlsm" tabindex="0" hidden>
+        <div class="exemples" role="group" aria-labelledby="exemples-vlsm-titre">
+          <span class="exemples__titre" id="exemples-vlsm-titre">Exemple :</span>
+          <button class="pill" type="button" id="exemple-vlsm-td">Plan de TD : 100 / 50 / 20 / 2 hôtes</button>
+        </div>
+
         <form class="form" id="form-vlsm" novalidate>
           <div class="field">
             <label for="vlsm-reseau">Réseau de départ</label>
@@ -123,8 +155,16 @@
 
         <section class="results" id="result-vlsm" aria-labelledby="result-vlsm-titre" hidden>
           <div class="results-head">
-            <h2 id="result-vlsm-titre">Plan d'adressage</h2>
+            <div>
+              <h2 id="result-vlsm-titre">Plan d'adressage</h2>
+              <p class="results-sub mono" id="vlsm-resume"></p>
+            </div>
             <div class="actions">
+              <button class="btn btn--secondary btn--sm btn-copy btn-lien" type="button">
+                <svg class="icon icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                <svg class="icon icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+                <span>Copier le lien</span>
+              </button>
               <button class="btn btn--secondary btn--sm btn-copy" type="button" data-export="vlsm">
                 <svg class="icon icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                 <svg class="icon icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
@@ -138,6 +178,30 @@
           </div>
 
           <dl class="stats" id="vlsm-stats"></dl>
+
+          <!-- Barre de répartition : SVG dont les largeurs sont des attributs (x="12.5%", width="25%"),
+               et non des styles en ligne interdits par la CSP. Le tableau ci-dessous reste la référence. -->
+          <div class="card">
+            <h3 id="vlsm-barre-titre">Répartition du réseau</h3>
+            <svg class="barre" role="img" aria-labelledby="vlsm-barre-titre" aria-describedby="vlsm-barre-desc">
+              <defs>
+                <!-- Hachures de l'espace libre : bandes obliques répétées -->
+                <pattern id="hachures" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                  <rect class="hachures__fond" width="8" height="8"/>
+                  <rect class="hachures__trait" width="3" height="8"/>
+                </pattern>
+                <!-- Coins arrondis de la barre -->
+                <clipPath id="barre-arrondi">
+                  <rect width="100%" height="100%" rx="10"/>
+                </clipPath>
+              </defs>
+              <g clip-path="url(#barre-arrondi)" id="vlsm-barre-segments"></g>
+            </svg>
+            <!-- Description complète pour les lecteurs d'écran -->
+            <p class="sr-only" id="vlsm-barre-desc"></p>
+            <!-- Légende visuelle (masquée aux lecteurs d'écran : la description ci-dessus dit la même chose) -->
+            <ul class="legende-barre" id="vlsm-barre-legende" aria-hidden="true"></ul>
+          </div>
 
           <div class="card card--table">
             <!-- Les rôles ARIA explicites gardent la sémantique de tableau quand le CSS

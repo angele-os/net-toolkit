@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <!-- Même CSP que index.html, mais sans script : cette page n'en a pas besoin. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; require-trusted-types-for 'script'; trusted-types 'none'; upgrade-insecure-requests">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="theme-color" content="#FFF8DF">
+  <!-- Une page d'erreur ne doit pas apparaître dans les moteurs de recherche -->
+  <meta name="robots" content="noindex">
+  <title>Page introuvable — net-toolkit</title>
+  <!-- Chemins ABSOLUS (/css/…) : cette page est affichée pour n'importe quelle adresse inconnue,
+       par ex. /a/b/c ; un chemin relatif chercherait alors /a/b/css/style.css. -->
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="preload" href="/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <a class="skip-link" href="#contenu">Aller au contenu</a>
+
+  <header class="site-header">
+    <div class="wrap site-header__inner">
+      <a class="brand" href="https://ange-bonkoski.fr">Ange Bonkoski</a>
+      <a class="header-link" href="https://github.com/angele-os/net-toolkit">Code source</a>
+    </div>
+  </header>
+
+  <main id="contenu" class="wrap">
+    <section class="hero" aria-labelledby="titre">
+      <p class="eyebrow">ERREUR 404</p>
+      <h1 id="titre">Page introuvable</h1>
+      <p class="lead">Cette adresse ne correspond à aucune page de l'outil. Le lien est peut-être incomplet ou la page a été déplacée.</p>
+    </section>
+
+    <div class="panel panel--court">
+      <p>Le calculateur IPv4 et VLSM se trouve sur la page d'accueil.</p>
+      <p class="panel__action">
+        <a class="btn btn--primary" href="/">Retour au calculateur</a>
+      </p>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap site-footer__inner">
+      <p>net-toolkit — licence MIT</p>
+      <p>
+        <a href="https://ange-bonkoski.fr">Portfolio</a>
+        <span aria-hidden="true">·</span>
+        <a href="https://github.com/angele-os/net-toolkit">Dépôt GitHub</a>
+      </p>
+    </div>
+  </footer>
+</body>
+</html>

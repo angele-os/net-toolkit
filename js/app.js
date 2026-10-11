@@ -6,6 +6,7 @@
 import { parseCidr, ipToString, analyze } from './ip.js';
 import { planVlsm, erreurNom, erreurHotes, BESOINS_MAX } from './vlsm.js';
 import { versTexteTabule, versCsv } from './export.js';
+import { lireEtat, ecrireEtat } from './etat.js';
 
 /* ==================== Petits utilitaires ==================== */
 
@@ -136,8 +137,8 @@ function afficherBinaire(conteneur, binaire, prefixe) {
 const exportsDisponibles = { ip: null, vlsm: null };
 
 function telechargerCsv(nomFichier, contenu) {
-  // ﻿ (BOM) : indique à Excel que le fichier est en UTF-8, pour que les accents s'affichent bien.
-  const blob = new Blob(['﻿', contenu], { type: 'text/csv;charset=utf-8' });
+  // \uFEFF (BOM, écrit avec son code pour rester visible dans le code) : indique à Excel que le fichier est en UTF-8, pour que les accents s'affichent bien.
+  const blob = new Blob(['\uFEFF', contenu], { type: 'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const lien = creer('a');
   lien.href = url;
@@ -151,7 +152,7 @@ function telechargerCsv(nomFichier, contenu) {
 
 const minuteursCopie = new Map();
 
-async function copier(bouton, texte) {
+async function copier(bouton, texte, message = 'Copié') {
   try {
     await navigator.clipboard.writeText(texte);
   } catch {
@@ -161,16 +162,34 @@ async function copier(bouton, texte) {
   }
   // L'icône devient une coche (voir .is-copied dans style.css) pendant 2 secondes.
   bouton.classList.add('is-copied');
-  annoncer('Copié');
+  annoncer(message);
   clearTimeout(minuteursCopie.get(bouton));
   minuteursCopie.set(bouton, setTimeout(() => bouton.classList.remove('is-copied'), 2000));
 }
 
-for (const bouton of document.querySelectorAll('.btn-copy')) {
+// Boutons « Copier » (tableau) : ceux qui ont un data-export.
+for (const bouton of document.querySelectorAll('.btn-copy[data-export]')) {
   bouton.addEventListener('click', () => {
     const donnees = exportsDisponibles[bouton.dataset.export];
     if (donnees) copier(bouton, versTexteTabule(donnees));
   });
+}
+
+// Boutons « Copier le lien » : l'adresse actuelle contient l'état du dernier calcul (#…).
+for (const bouton of document.querySelectorAll('.btn-lien')) {
+  bouton.addEventListener('click', () => copier(bouton, window.location.href, 'Lien copié'));
+}
+
+/* ==================== Lien partageable (#…) ==================== */
+
+const messageLien = document.getElementById('lien-erreur');
+
+// Enregistre l'état dans l'adresse après un calcul réussi.
+// replaceState remplace l'adresse SANS recharger la page ni ajouter d'entrée dans l'historique
+// (le bouton « Précédent » ne repasse pas par chaque calcul).
+function enregistrerEtat(etat) {
+  history.replaceState(null, '', `#${ecrireEtat(etat)}`);
+  messageLien.textContent = '';
 }
 
 for (const bouton of document.querySelectorAll('.btn-csv')) {
@@ -219,9 +238,13 @@ formIp.addEventListener('submit', (event) => {
   document.getElementById('ip-legend-reseau').textContent = `Partie réseau : ${prefix} bits`;
   document.getElementById('ip-legend-hote').textContent = `Partie hôte : ${32 - prefix} bits`;
 
+  // Adresse saisie, réécrite proprement (« 192.168.1.37 255.255.255.224 » → « 192.168.1.37/27 »).
+  const adresse = `${ipToString(ip)}/${prefix}`;
+  document.getElementById('ip-resume').textContent = adresse;
+
   // [libellé, valeur affichée, valeur exportée, en police mono ?]
   const lignes = [
-    ['Adresse IP', `${ipToString(ip)}/${prefix}`, null, true],
+    ['Adresse IP', adresse, null, true],
     ['Adresse réseau', `${r.network}/${prefix}`, null, true],
     ['Masque', r.mask, null, true],
     ['Wildcard', r.wildcard, null, true],
@@ -229,7 +252,11 @@ formIp.addEventListener('submit', (event) => {
     ['Première IP utilisable', r.firstHost, null, true],
     ['Dernière IP utilisable', r.lastHost, null, true],
     ['Hôtes utilisables', nombre(r.hosts), String(r.hosts), false],
+    ['Adresses au total', nombre(r.totalAddresses), String(r.totalAddresses), false],
+    ['Sous-réseau suivant (même taille)', r.nextSubnet ?? 'Aucun : fin de l’espace IPv4', null, r.nextSubnet !== null],
     ['Type', TYPES[r.type].long, null, false],
+    ['Classe', `${r.historicalClass} (historique, avant CIDR)`, null, false],
+    ['IP en hexadécimal', r.hex, null, true],
   ];
 
   document.getElementById('ip-table').replaceChildren(
@@ -252,6 +279,7 @@ formIp.addEventListener('submit', (event) => {
   };
 
   resultatIp.hidden = false;
+  enregistrerEtat({ onglet: 'ip', adresse });
   annoncer(`Résultat affiché : réseau ${r.network}/${prefix}, ${nombre(r.hosts)} hôtes utilisables.`);
 });
 
@@ -330,13 +358,25 @@ boutonAjouter.addEventListener('click', () => {
   if (boutonAjouter.disabled) annoncer(TEXTE_LIMITE);
 });
 
-// Exemple de départ (le cas du TD), modifiable.
-[
-  ['Admin', 100],
-  ['Prod', 50],
-  ['Wifi', 20],
-  ['Lien routeurs', 2],
-].forEach(([nom, hotes]) => ajouterBesoin(nom, hotes));
+// Le plan du TD : lignes de départ, et contenu du bouton d'exemple « Plan de TD ».
+const EXEMPLE_TD = {
+  reseau: '192.168.10.0/24',
+  besoins: [
+    { nom: 'Admin', hotes: 100 },
+    { nom: 'Prod', hotes: 50 },
+    { nom: 'Wifi', hotes: 20 },
+    { nom: 'Lien routeurs', hotes: 2 },
+  ],
+};
+
+// Remplace toutes les lignes de besoins par celles fournies.
+function remplacerBesoins(besoins) {
+  listeBesoins.replaceChildren();
+  for (const { nom, hotes } of besoins) ajouterBesoin(nom, hotes);
+}
+
+// Lignes de départ (modifiables).
+remplacerBesoins(EXEMPLE_TD.besoins);
 
 // Vérifie chaque ligne pour afficher l'erreur sous le bon champ.
 // Les règles viennent de vlsm.js (erreurNom, erreurHotes) : un seul endroit les définit,
@@ -481,6 +521,131 @@ formVlsm.addEventListener('submit', (event) => {
     ]),
   };
 
+  document.getElementById('vlsm-resume').textContent = `Réseau ${plan.network}`;
+  afficherBarre(plan, tailleReseau);
+
   resultatVlsm.hidden = false;
+  // On enregistre les besoins dans l'ordre de saisie (pas l'ordre trié) : le lien redonne les mêmes lignes.
+  enregistrerEtat({
+    onglet: 'vlsm',
+    reseau: plan.network,
+    besoins: besoins.map((b) => ({ nom: b.nom.trim(), hotes: b.hotes })),
+  });
   annoncer(`Plan calculé : ${plan.subnets.length} sous-réseaux, ${nombre(libres)} adresses libres.`);
 });
+
+/* ==================== Barre de répartition (SVG) ==================== */
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+// Nombre de teintes de violet qui se succèdent (classes .seg-0 à .seg-3 dans style.css).
+const NB_TEINTES = 4;
+
+// Pourcentage lisible : 12.5 → « 12,5 % » ; un tout petit bloc → « < 0,1 % » plutôt que « 0 % ».
+function pourcentLisible(part) {
+  if (part > 0 && part < 0.1) return '< 0,1 %';
+  return `${nombre(Math.round(part * 10) / 10)} %`;
+}
+
+// Un rectangle SVG de la barre : position et largeur en % du réseau de départ.
+// setAttribute sur un élément SVG : ce sont des attributs, pas du style en ligne (permis par la CSP).
+function segment(debut, largeur, classe) {
+  const rect = document.createElementNS(SVG_NS, 'rect');
+  rect.setAttribute('x', `${debut}%`);
+  rect.setAttribute('width', `${largeur}%`);
+  rect.setAttribute('height', '100%');
+  rect.setAttribute('class', classe);
+  return rect;
+}
+
+// Une entrée de légende : pastille de couleur + texte.
+function entreeLegende(classe, texte) {
+  const li = creer('li');
+  li.append(creer('span', `pastille ${classe}`), creer('span', '', texte));
+  return li;
+}
+
+function afficherBarre(plan, tailleReseau) {
+  const rectangles = [];
+  const legende = [];
+  const phrases = [];
+  // Position du prochain bloc, en % depuis la gauche de la barre.
+  let position = 0;
+
+  plan.subnets.forEach((s, i) => {
+    // Taille du sous-réseau : 2^(bits hôte).
+    const taille = 2 ** (32 - s.prefix);
+    // Part du réseau de départ, en %.
+    const part = (taille / tailleReseau) * 100;
+    // Les teintes tournent : 0, 1, 2, 3, 0, 1… (reste de la division par NB_TEINTES).
+    const classe = `seg-${i % NB_TEINTES}`;
+    rectangles.push(segment(position, part, `segment ${classe}`));
+    legende.push(entreeLegende(classe, `${s.name} · ${s.cidr} · ${pourcentLisible(part)}`));
+    phrases.push(`${s.name} ${pourcentLisible(part)} (${s.cidr}, ${nombre(taille)} adresses)`);
+    // Le bloc suivant commence juste après celui-ci.
+    position += part;
+  });
+
+  if (plan.free) {
+    // L'espace libre occupe tout le reste de la barre, hachuré.
+    const part = (plan.free.addresses / tailleReseau) * 100;
+    rectangles.push(segment(position, part, 'segment segment--libre'));
+    legende.push(entreeLegende('pastille--libre', `Espace libre · ${pourcentLisible(part)}`));
+    phrases.push(`espace libre ${pourcentLisible(part)} (${nombre(plan.free.addresses)} adresses)`);
+  }
+
+  document.getElementById('vlsm-barre-segments').replaceChildren(...rectangles);
+  document.getElementById('vlsm-barre-legende').replaceChildren(...legende);
+  document.getElementById('vlsm-barre-desc').textContent =
+    `Répartition de ${plan.network}, de gauche à droite : ${phrases.join(' ; ')}. Le détail est dans le tableau.`;
+}
+
+/* ==================== Exemples rapides ==================== */
+
+for (const bouton of document.querySelectorAll('.js-exemple-ip')) {
+  bouton.addEventListener('click', () => {
+    effacerErreur(champIp);
+    // data-adresse vient de notre propre HTML ; on l'écrit dans .value (jamais en HTML).
+    champIp.value = bouton.dataset.adresse;
+    // requestSubmit déclenche le même « submit » que le bouton Calculer : même chemin, mêmes vérifications.
+    formIp.requestSubmit();
+  });
+}
+
+document.getElementById('exemple-vlsm-td').addEventListener('click', () => {
+  champReseau.value = EXEMPLE_TD.reseau;
+  remplacerBesoins(EXEMPLE_TD.besoins);
+  formVlsm.requestSubmit();
+});
+
+/* ==================== Restaurer un calcul depuis l'adresse (#…) ==================== */
+// Le fragment vient de N'IMPORTE QUI (un lien reçu par message, un QR code…) : donnée non fiable.
+// lireEtat() (etat.js) le valide avec les mêmes règles que les champs ; ici, on se contente de
+// remplir les champs (.value) et de lancer le calcul normal, qui revérifie tout.
+
+function restaurerDepuisAdresse() {
+  messageLien.textContent = '';
+  try {
+    const etat = lireEtat(window.location.hash);
+    // Fragment vide : rien à restaurer, on garde les valeurs par défaut.
+    if (!etat) return;
+
+    if (etat.onglet === 'ip') {
+      activerOnglet(document.getElementById('tab-ip'), false);
+      champIp.value = etat.adresse;
+      formIp.requestSubmit();
+    } else {
+      activerOnglet(document.getElementById('tab-vlsm'), false);
+      champReseau.value = etat.reseau;
+      remplacerBesoins(etat.besoins);
+      formVlsm.requestSubmit();
+    }
+  } catch (erreur) {
+    // Aucun plantage : on explique le problème (en texte) et l'outil reste utilisable.
+    messageLien.textContent = `Le lien partagé n’a pas pu être lu. ${erreur.message} Les valeurs par défaut sont affichées.`;
+  }
+}
+
+restaurerDepuisAdresse();
+// Si l'utilisateur colle un autre lien #… dans la même page, on le relit aussi.
+// (history.replaceState ne déclenche pas cet événement : pas de boucle après un calcul.)
+window.addEventListener('hashchange', restaurerDepuisAdresse);

@@ -9,8 +9,73 @@ import {
   parseCidr,
   addressType,
   analyze,
+  historicalClass,
+  ipToHex,
+  nextSubnet,
   LONGUEUR_MAX_ADRESSE,
 } from '../js/ip.js';
+
+describe('historicalClass (classes avant CIDR)', () => {
+  // Les frontières exactes de chaque classe : première et dernière adresse.
+  const cas = {
+    '0.0.0.0': 'A',
+    '127.255.255.255': 'A',
+    '128.0.0.0': 'B',
+    '191.255.255.255': 'B',
+    '192.0.0.0': 'C',
+    '223.255.255.255': 'C',
+    '224.0.0.0': 'D',
+    '239.255.255.255': 'D',
+    '240.0.0.0': 'E',
+    '255.255.255.255': 'E',
+  };
+  for (const [ip, classe] of Object.entries(cas)) {
+    test(`${ip} est de classe ${classe}`, () => {
+      assert.equal(historicalClass(parseIp(ip)), classe);
+    });
+  }
+
+  test('refuse un entier invalide', () => {
+    assert.throws(() => historicalClass(-1));
+  });
+});
+
+describe('ipToHex', () => {
+  test('convertit en hexadécimal sur 8 chiffres', () => {
+    assert.equal(ipToHex(parseIp('192.168.1.37')), '0xC0A80125');
+    assert.equal(ipToHex(parseIp('10.0.0.1')), '0x0A000001');
+    assert.equal(ipToHex(0), '0x00000000');
+    assert.equal(ipToHex(4294967295), '0xFFFFFFFF');
+  });
+
+  test('refuse un entier invalide', () => {
+    assert.throws(() => ipToHex(2 ** 32));
+  });
+});
+
+describe('nextSubnet', () => {
+  test('donne le bloc suivant de même taille', () => {
+    assert.equal(nextSubnet(parseIp('192.168.1.37'), 27), '192.168.1.64/27');
+    assert.equal(nextSubnet(parseIp('192.168.1.200'), 24), '192.168.2.0/24');
+    assert.equal(nextSubnet(parseIp('10.0.0.1'), 8), '11.0.0.0/8');
+    assert.equal(nextSubnet(parseIp('8.8.8.8'), 32), '8.8.8.9/32');
+  });
+
+  test('passe à l’octet supérieur', () => {
+    assert.equal(nextSubnet(parseIp('192.168.255.200'), 24), '192.169.0.0/24');
+  });
+
+  test('renvoie null au bout de l’espace IPv4', () => {
+    assert.equal(nextSubnet(parseIp('255.255.255.253'), 30), null);
+    assert.equal(nextSubnet(parseIp('255.255.255.255'), 32), null);
+    assert.equal(nextSubnet(parseIp('1.2.3.4'), 0), null);
+  });
+
+  test('refuse une IP ou un préfixe invalide', () => {
+    assert.throws(() => nextSubnet(-1, 24));
+    assert.throws(() => nextSubnet(0, 33));
+  });
+});
 
 describe('limite de longueur des adresses', () => {
   test('vaut 40 caractères', () => {
@@ -200,6 +265,20 @@ describe('analyze', () => {
     assert.equal(r.lastHost, '192.168.1.62');
     assert.equal(r.hosts, 30);
     assert.equal(r.binary, '11000000.10101000.00000001.00100101');
+  });
+
+  test('192.168.1.37/27 : total d’adresses, classe, hexadécimal, sous-réseau suivant', () => {
+    const r = analyser('192.168.1.37/27');
+    assert.equal(r.totalAddresses, 32);
+    assert.equal(r.historicalClass, 'C');
+    assert.equal(r.hex, '0xC0A80125');
+    assert.equal(r.nextSubnet, '192.168.1.64/27');
+  });
+
+  test('total d’adresses aux cas limites : /0, /31, /32', () => {
+    assert.equal(analyser('1.2.3.4/0').totalAddresses, 4294967296);
+    assert.equal(analyser('10.0.0.1/31').totalAddresses, 2);
+    assert.equal(analyser('8.8.8.8/32').totalAddresses, 1);
   });
 
   test('cas limite /0 : tout l’espace IPv4', () => {

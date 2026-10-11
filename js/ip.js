@@ -183,6 +183,52 @@ export function addressType(ip) {
 }
 
 /**
+ * Classe historique (avant CIDR, 1993) : décidée uniquement par les premiers bits du 1er octet.
+ * A : 0xxxxxxx (0-127), B : 10xxxxxx (128-191), C : 110xxxxx (192-223),
+ * D : 1110xxxx (224-239, multicast), E : 1111xxxx (240-255, expérimental).
+ */
+export function historicalClass(ip) {
+  // Vérifie l'IP (lève une erreur si elle est invalide).
+  ipToString(ip);
+  // Premier octet : on décale de 24 bits pour ne garder que les 8 bits de gauche.
+  const premier = ip >>> 24;
+  // 128 = 10000000 : en dessous, le 1er bit vaut 0.
+  if (premier < 128) return 'A';
+  // 192 = 11000000 : en dessous, les 2 premiers bits valent 10.
+  if (premier < 192) return 'B';
+  // 224 = 11100000 : en dessous, les 3 premiers bits valent 110.
+  if (premier < 224) return 'C';
+  // 240 = 11110000 : en dessous, les 4 premiers bits valent 1110.
+  if (premier < 240) return 'D';
+  return 'E';
+}
+
+/**
+ * IP en hexadécimal : 192.168.1.37 → « 0xC0A80125 » (2 chiffres hexadécimaux par octet).
+ */
+export function ipToHex(ip) {
+  // Vérifie l'IP (lève une erreur si elle est invalide).
+  ipToString(ip);
+  // Base 16, en majuscules, complétée à 8 chiffres (32 bits = 8 × 4 bits).
+  return `0x${ip.toString(16).toUpperCase().padStart(8, '0')}`;
+}
+
+/**
+ * Sous-réseau suivant de même taille : 192.168.1.37/27 → « 192.168.1.64/27 ».
+ * Renvoie null s'il n'y en a pas (on est au bout de l'espace IPv4).
+ */
+export function nextSubnet(ip, prefixe) {
+  // Vérifie l'IP (lève une erreur si elle est invalide).
+  ipToString(ip);
+  // Adresse réseau du bloc actuel : IP ET masque.
+  const reseau = (ip & prefixToMask(prefixe)) >>> 0;
+  // Le bloc suivant commence juste après celui-ci : réseau + taille du bloc (2^bits hôte).
+  const suivant = reseau + 2 ** (32 - prefixe);
+  // Au-delà de 255.255.255.255, il n'y a plus rien (ex. 255.255.255.252/30 ou /0).
+  return suivant > MAX_IP ? null : `${ipToString(suivant)}/${prefixe}`;
+}
+
+/**
  * Analyse complète d'une IP (entier) et d'un préfixe.
  */
 export function analyze(ip, prefixe) {
@@ -227,7 +273,12 @@ export function analyze(ip, prefixe) {
     firstHost: ipToString(premiere),
     lastHost: ipToString(derniere),
     hosts: hotes,
+    // Nombre total d'adresses du bloc (réseau et broadcast compris) : 2^(bits hôte).
+    totalAddresses: 2 ** (32 - prefixe),
     type: addressType(ip),
+    historicalClass: historicalClass(ip),
+    hex: ipToHex(ip),
+    nextSubnet: nextSubnet(ip, prefixe),
     binary: binaire,
   };
 }

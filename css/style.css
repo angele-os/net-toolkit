@@ -226,6 +226,15 @@ a:hover {
     0 34px 64px -30px rgba(90, 35, 95, .4);
 }
 
+/* Page 404 : panneau court avec un bouton de retour */
+.panel--court {
+  max-width: 40rem;
+}
+
+.panel__action {
+  margin-top: 1.25rem;
+}
+
 .site-footer {
   margin-top: auto;
   border-top: 1px solid var(--line);
@@ -261,6 +270,46 @@ a:hover {
   background: var(--white);
   border: 1px solid var(--line-strong);
   border-radius: var(--r-sm);
+}
+
+/* --- Erreur de lecture d'un lien partagé (au-dessus des onglets) --- */
+.lien-erreur {
+  margin-bottom: 1.25rem;
+}
+
+/* --- Exemples rapides : boutons en pilule --- */
+.exemples {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .5rem;
+  margin-bottom: 1.5rem;
+}
+
+.exemples__titre {
+  margin-right: .25rem;
+  font-family: var(--mono);
+  font-size: .78rem;
+  color: var(--text-dim);
+}
+
+.pill {
+  min-height: 44px;
+  padding: .5rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(90, 35, 95, .055);
+  font: inherit;
+  font-size: .86rem;
+  font-weight: 500;
+  color: var(--text);
+  cursor: pointer;
+  transition: background-color .3s var(--ease), border-color .3s var(--ease);
+}
+
+.pill:hover {
+  background: rgba(90, 35, 95, .09);
+  border-color: var(--line-strong);
 }
 
 /* --- Onglets (comme le sélecteur de langue du portfolio) --- */
@@ -537,6 +586,13 @@ legend {
   font-size: 1.5rem;
 }
 
+/* Rappel de l'adresse calculée sous le titre (utile aussi à l'impression) */
+.results-sub {
+  margin-top: .2rem;
+  font-size: .88rem;
+  color: var(--text-dim);
+}
+
 .actions {
   display: flex;
   flex-wrap: wrap;
@@ -708,6 +764,69 @@ legend {
   white-space: nowrap;
 }
 
+/* Barre de répartition VLSM (SVG) */
+.barre {
+  display: block;
+  width: 100%;
+  height: 40px;
+}
+
+/* Les sous-réseaux se succèdent dans 4 teintes de violet ; « fill » colore un rectangle SVG,
+   « background » colore la pastille de la légende (même classe pour les deux). */
+.seg-0 { fill: var(--accent-deep); background: var(--accent-deep); }
+.seg-1 { fill: #7a3f80; background: #7a3f80; }
+.seg-2 { fill: #a46ba9; background: #a46ba9; }
+.seg-3 { fill: #c9a3cc; background: #c9a3cc; }
+
+/* Un trait clair sépare deux sous-réseaux voisins */
+.segment {
+  stroke: var(--white);
+  stroke-width: 2;
+}
+
+/* Espace libre : motif hachuré défini dans le SVG (<pattern id="hachures">) */
+.segment--libre {
+  fill: url(#hachures);
+}
+
+.hachures__fond {
+  fill: var(--white);
+}
+
+.hachures__trait {
+  fill: var(--line-strong);
+}
+
+.legende-barre {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem 1.25rem;
+  margin: .9rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: .82rem;
+  color: var(--text-dim);
+}
+
+.legende-barre li {
+  display: inline-flex;
+  align-items: center;
+  gap: .45rem;
+}
+
+.pastille {
+  width: .9rem;
+  height: .9rem;
+  flex: none;
+  border-radius: 3px;
+}
+
+/* Pastille hachurée pour l'espace libre (dégradé répété = rayures obliques) */
+.pastille--libre {
+  border: 1px solid var(--line-strong);
+  background: repeating-linear-gradient(45deg, var(--line-strong) 0 2px, var(--white) 2px 5px);
+}
+
 /* Espace libre */
 .free {
   font-size: .95rem;
@@ -746,8 +865,10 @@ legend {
   }
 }
 
-/* Sous 860px : chaque ligne du tableau VLSM devient une carte (pas de défilement horizontal) */
-@media (max-width: 859.98px) {
+/* Sous 860px : chaque ligne du tableau VLSM devient une carte (pas de défilement horizontal).
+   « screen » : seulement à l'écran. Une feuille A4 fait moins de 860px de large, et on veut
+   garder un vrai tableau à l'impression. */
+@media screen and (max-width: 859.98px) {
   .table-cards,
   .table-cards tbody,
   .table-cards tr,
@@ -830,7 +951,179 @@ legend {
   }
 }
 
-/* ========== 7. Mouvement réduit : on coupe toutes les transitions ========== */
+/* ========== 7. Impression : un plan lisible en noir et blanc, pour le TD ========== */
+@media print {
+  /* Paysage : les 8 colonnes du plan VLSM tiennent sur la largeur */
+  @page {
+    size: A4 landscape;
+    margin: 1.2cm;
+  }
+
+  body {
+    background: #fff;
+    color: #000;
+    font-size: 10pt;
+  }
+
+  /* Tout ce qui ne sert qu'à l'écran disparaît : en-tête, pied de page, onglets,
+     formulaires, boutons, exemples, messages. Seuls le titre et les résultats restent. */
+  .site-header,
+  .site-footer,
+  .skip-link,
+  .lead,
+  .tabs,
+  .exemples,
+  .form,
+  .actions,
+  .lien-erreur,
+  .noscript {
+    display: none !important;
+  }
+
+  .wrap {
+    width: 100%;
+  }
+
+  .hero {
+    padding: 0 0 .4cm;
+  }
+
+  .hero h1 {
+    font-size: 16pt;
+  }
+
+  .eyebrow {
+    margin-bottom: .1cm;
+  }
+
+  /* Plus d'effet verre, d'ombres ni de fonds colorés */
+  .panel,
+  .card,
+  .stats {
+    margin: 0;
+    padding: 0;
+    background: none;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  .results {
+    margin-top: 0;
+    gap: .4cm;
+  }
+
+  h1, h2, h3, p, th, td, dt, dd,
+  .stat__value,
+  .stat__label {
+    color: #000 !important;
+  }
+
+  /* Chiffres clés : 3 cases encadrées */
+  .stats {
+    gap: 0;
+    border: 1px solid #000;
+  }
+
+  .stat {
+    padding: .2cm .3cm;
+    background: none;
+    border-right: 1px solid #000;
+  }
+
+  .stat:last-child {
+    border-right: 0;
+  }
+
+  .stat__value {
+    font-size: 14pt;
+  }
+
+  /* Tableaux : traits noirs, en-têtes répétés sur chaque page, lignes jamais coupées */
+  .data-table {
+    font-size: 9pt;
+  }
+
+  .data-table thead {
+    display: table-header-group;
+  }
+
+  .data-table thead th {
+    color: #000;
+    border-bottom: 1.5px solid #000;
+  }
+
+  .data-table td,
+  .data-table tbody th {
+    padding: .15cm .2cm;
+    border-bottom: 1px solid #888;
+  }
+
+  .data-table tr,
+  .card,
+  .stats {
+    break-inside: avoid;
+  }
+
+  /* Binaire : sans couleur, les bits réseau sont en gras soulignés */
+  .bits-reseau {
+    background: none;
+    text-decoration: underline;
+  }
+
+  .bits-hote {
+    color: #555;
+  }
+
+  .swatch--reseau {
+    background: #ccc;
+  }
+
+  /* Barre de répartition en niveaux de gris ; on demande à l'imprimante de garder les remplissages */
+  .barre,
+  .pastille {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .seg-0 { fill: #222; background: #222; }
+  .seg-1 { fill: #555; background: #555; }
+  .seg-2 { fill: #888; background: #888; }
+  .seg-3 { fill: #bbb; background: #bbb; }
+
+  .segment {
+    stroke: #fff;
+  }
+
+  .hachures__trait {
+    fill: #000;
+  }
+
+  .pastille--libre {
+    border-color: #000;
+    background: repeating-linear-gradient(45deg, #000 0 2px, #fff 2px 5px);
+  }
+
+  /* Même taille pour toutes les cellules (les IP en .mono étaient plus grandes) */
+  .data-table .mono,
+  .data-table .num {
+    font-size: 9pt;
+  }
+
+  .legende-barre,
+  .blocs li {
+    color: #000;
+  }
+
+  .blocs li {
+    background: none;
+    border-color: #000;
+  }
+}
+
+/* ========== 8. Mouvement réduit : on coupe toutes les transitions ========== */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

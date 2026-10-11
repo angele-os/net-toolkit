@@ -1,0 +1,5 @@
+# Tous les robots peuvent explorer le site.
+User-agent: *
+Allow: /
+
+Sitemap: https://reseau.ange-bonkoski.fr/sitemap.xml
