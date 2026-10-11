@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="theme-color" content="#FFF8DF">
+  <meta name="description" content="Calculateur IPv4 et VLSM : adresse réseau, broadcast, masque, plage utilisable et plan d'adressage. Calculs faits dans le navigateur.">
+  <title>net-toolkit — Calculateur IPv4 &amp; VLSM</title>
+  <!-- Favicon : monogramme « AB » en SVG intégré (data:), autorisé par img-src 'self' data: -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%235A235F'/%3E%3Ctext x='16' y='21.5' text-anchor='middle' font-family='Georgia,serif' font-size='14' font-weight='700' fill='%23FFF8DF'%3EAB%3C/text%3E%3C/svg%3E">
+  <link rel="preload" href="fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/style.css">
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#contenu">Aller au contenu</a>
+
+  <header class="site-header">
+    <div class="wrap site-header__inner">
+      <a class="brand" href="https://ange-bonkoski.fr">Ange Bonkoski</a>
+      <a class="header-link" href="https://github.com/angele-os/net-toolkit">Code source</a>
+    </div>
+  </header>
+
+  <main id="contenu" class="wrap">
+    <section class="hero" aria-labelledby="titre">
+      <p class="eyebrow">OUTIL RÉSEAU — IPv4 &amp; VLSM</p>
+      <h1 id="titre">Calculateur de sous-réseaux</h1>
+      <p class="lead">Analyser une adresse IPv4 ou découper un réseau en sous-réseaux de taille variable. Les calculs se font dans le navigateur : rien n'est envoyé.</p>
+    </section>
+
+    <div class="panel">
+      <div class="tabs" role="tablist" aria-label="Outils">
+        <button class="tab" type="button" role="tab" id="tab-ip" aria-controls="panel-ip" aria-selected="true">Analyser une IP</button>
+        <button class="tab" type="button" role="tab" id="tab-vlsm" aria-controls="panel-vlsm" aria-selected="false" tabindex="-1">Plan VLSM</button>
+      </div>
+
+      <!-- ===== Onglet 1 : analyser une IP ===== -->
+      <section class="tabpanel" id="panel-ip" role="tabpanel" aria-labelledby="tab-ip" tabindex="0">
+        <form class="form" id="form-ip" novalidate>
+          <div class="field">
+            <label for="ip-input">Adresse IP et préfixe</label>
+            <p class="hint" id="ip-input-hint">Ex. 192.168.1.37/27 ou 192.168.1.37 255.255.255.224</p>
+            <input class="input input--mono" id="ip-input" type="text" value="192.168.1.37/27"
+                   autocomplete="off" autocapitalize="off" spellcheck="false"
+                   aria-describedby="ip-input-hint ip-input-error">
+            <p class="field-error" id="ip-input-error"></p>
+          </div>
+          <div>
+            <button class="btn btn--primary" type="submit">Calculer</button>
+          </div>
+        </form>
+
+        <section class="results" id="result-ip" aria-labelledby="result-ip-titre" hidden>
+          <div class="results-head">
+            <h2 id="result-ip-titre">Résultat</h2>
+            <div class="actions">
+              <button class="btn btn--secondary btn--sm btn-copy" type="button" data-export="ip">
+                <svg class="icon icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                <svg class="icon icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+                <span>Copier</span>
+              </button>
+              <button class="btn btn--secondary btn--sm btn-csv" type="button" data-export="ip">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg>
+                <span>Télécharger en CSV</span>
+              </button>
+            </div>
+          </div>
+
+          <dl class="stats" id="ip-stats"></dl>
+
+          <div class="card">
+            <h3>IP en binaire</h3>
+            <p class="binary" id="ip-binary"></p>
+            <p class="legend">
+              <span class="legend__item"><span class="swatch swatch--reseau" aria-hidden="true"></span><span id="ip-legend-reseau"></span></span>
+              <span class="legend__item"><span class="swatch swatch--hote" aria-hidden="true"></span><span id="ip-legend-hote"></span></span>
+            </p>
+          </div>
+
+          <div class="card card--table">
+            <table class="data-table table-kv">
+              <caption class="sr-only">Détails de l'adresse</caption>
+              <tbody id="ip-table"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <!-- ===== Onglet 2 : plan VLSM ===== -->
+      <section class="tabpanel" id="panel-vlsm" role="tabpanel" aria-labelledby="tab-vlsm" tabindex="0" hidden>
+        <form class="form" id="form-vlsm" novalidate>
+          <div class="field">
+            <label for="vlsm-reseau">Réseau de départ</label>
+            <p class="hint" id="vlsm-reseau-hint">Ex. 192.168.10.0/24 ou 192.168.10.0 255.255.255.0</p>
+            <input class="input input--mono" id="vlsm-reseau" type="text" value="192.168.10.0/24"
+                   autocomplete="off" autocapitalize="off" spellcheck="false"
+                   aria-describedby="vlsm-reseau-hint vlsm-reseau-error">
+            <p class="field-error" id="vlsm-reseau-error"></p>
+          </div>
+
+          <fieldset class="besoins">
+            <legend>Besoins</legend>
+            <p class="hint">Un sous-réseau par ligne : son nom et le nombre d'hôtes à connecter.</p>
+            <ol class="besoins__liste" id="besoins-liste"></ol>
+            <button class="btn btn--secondary btn--sm" type="button" id="btn-ajouter">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+              <span>Ajouter un besoin</span>
+            </button>
+          </fieldset>
+
+          <div>
+            <button class="btn btn--primary" type="submit">Calculer</button>
+          </div>
+        </form>
+
+        <section class="results" id="result-vlsm" aria-labelledby="result-vlsm-titre" hidden>
+          <div class="results-head">
+            <h2 id="result-vlsm-titre">Plan d'adressage</h2>
+            <div class="actions">
+              <button class="btn btn--secondary btn--sm btn-copy" type="button" data-export="vlsm">
+                <svg class="icon icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                <svg class="icon icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+                <span>Copier</span>
+              </button>
+              <button class="btn btn--secondary btn--sm btn-csv" type="button" data-export="vlsm">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg>
+                <span>Télécharger en CSV</span>
+              </button>
+            </div>
+          </div>
+
+          <dl class="stats" id="vlsm-stats"></dl>
+
+          <div class="card card--table">
+            <!-- Les rôles ARIA explicites gardent la sémantique de tableau quand le CSS
+                 transforme les lignes en cartes sur mobile (display: block). -->
+            <table class="data-table table-cards" role="table">
+              <caption class="sr-only">Sous-réseaux du plan VLSM</caption>
+              <thead role="rowgroup">
+                <tr role="row">
+                  <th scope="col" role="columnheader">Nom</th>
+                  <th scope="col" role="columnheader">Hôtes demandés</th>
+                  <th scope="col" role="columnheader">Sous-réseau</th>
+                  <th scope="col" role="columnheader">Masque</th>
+                  <th scope="col" role="columnheader">Passerelle</th>
+                  <th scope="col" role="columnheader">Plage utilisable</th>
+                  <th scope="col" role="columnheader">Broadcast</th>
+                  <th scope="col" role="columnheader">Utilisation</th>
+                </tr>
+              </thead>
+              <tbody id="vlsm-table" role="rowgroup"></tbody>
+            </table>
+          </div>
+
+          <div class="card">
+            <h3>Espace libre</h3>
+            <p class="free" id="vlsm-libre"></p>
+            <ul class="blocs" id="vlsm-blocs" aria-label="Blocs libres réutilisables"></ul>
+          </div>
+        </section>
+      </section>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap site-footer__inner">
+      <p>net-toolkit — licence MIT</p>
+      <p>
+        <a href="https://ange-bonkoski.fr">Portfolio</a>
+        <span aria-hidden="true">·</span>
+        <a href="https://github.com/angele-os/net-toolkit">Dépôt GitHub</a>
+      </p>
+    </div>
+  </footer>
+
+  <!-- Annonces pour les lecteurs d'écran (« Copié », résultat affiché…) -->
+  <p class="sr-only" id="annonce" role="status" aria-live="polite"></p>
+
+  <!-- Modèle d'une ligne de besoin VLSM : app.js le recopie (cloneNode), sans innerHTML. -->
+  <template id="modele-besoin">
+    <li class="besoin">
+      <div class="field besoin__nom">
+        <label>Nom<span class="sr-only besoin__num"></span></label>
+        <input class="input js-nom" type="text" autocomplete="off">
+        <p class="field-error"></p>
+      </div>
+      <div class="field besoin__hotes">
+        <label>Hôtes<span class="sr-only besoin__num"></span></label>
+        <input class="input input--mono js-hotes" type="text" inputmode="numeric" autocomplete="off">
+        <p class="field-error"></p>
+      </div>
+      <button class="btn-icon besoin__suppr js-supprimer" type="button">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </li>
+  </template>
+</body>
+</html>
