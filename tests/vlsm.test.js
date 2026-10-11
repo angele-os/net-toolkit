@@ -1,7 +1,7 @@
 // Tests du calcul VLSM (js/vlsm.js). Lancer avec : npm test
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { planVlsm } from '../js/vlsm.js';
+import { planVlsm, erreurNom, erreurHotes, NOM_LONGUEUR_MAX, HOTES_MAX, BESOINS_MAX } from '../js/vlsm.js';
 
 // Besoins du cas de référence (TD classique).
 const BESOINS_REFERENCE = [
@@ -101,5 +101,74 @@ describe('planVlsm : erreurs', () => {
 
   test('réseau mal aligné : propose la bonne adresse', () => {
     assert.throws(() => planVlsm('192.168.10.5/24', BESOINS_REFERENCE), /Voulais-tu dire 192\.168\.10\.0\/24/);
+  });
+
+  test('indique le numéro du besoin en cause', () => {
+    assert.throws(
+      () => planVlsm('10.0.0.0/24', [{ nom: 'A', hotes: 10 }, { nom: 'B', hotes: 0 }]),
+      /^Error: Besoin n°2 : le nombre d’hôtes/,
+    );
+  });
+});
+
+describe('limites de saisie', () => {
+  test('valeurs des limites', () => {
+    assert.equal(NOM_LONGUEUR_MAX, 32);
+    assert.equal(HOTES_MAX, 9_999_999_999);
+    assert.equal(BESOINS_MAX, 256);
+  });
+
+  test('nom : 32 caractères acceptés, 33 refusés', () => {
+    assert.equal(erreurNom('a'.repeat(32)), null);
+    assert.match(erreurNom('a'.repeat(33)), /dépasse 32 caractères \(33 saisis\)/);
+    // Les espaces autour ne comptent pas : le nom est utilisé sans eux.
+    assert.equal(erreurNom(`  ${'a'.repeat(32)}  `), null);
+  });
+
+  test('hôtes : 10 chiffres acceptés, 11 refusés', () => {
+    assert.equal(erreurHotes(9_999_999_999), null);
+    assert.match(erreurHotes(10_000_000_000), /ne peut pas dépasser/);
+  });
+
+  test('besoins : 256 acceptés, 257 refusés', () => {
+    // 256 besoins de 2 hôtes = 256 blocs /30 = 1024 adresses : ça tient pile dans un /22.
+    const besoins = (n) => Array.from({ length: n }, (_, i) => ({ nom: `L${i + 1}`, hotes: 2 }));
+    assert.equal(planVlsm('10.0.0.0/22', besoins(256)).subnets.length, 256);
+    assert.throws(() => planVlsm('10.0.0.0/16', besoins(257)), /Trop de besoins : 256 au maximum \(257 reçus\)/);
+  });
+
+  test('planVlsm applique les limites même sans l’interface', () => {
+    assert.throws(() => planVlsm('10.0.0.0/24', [{ nom: 'a'.repeat(33), hotes: 2 }]), /dépasse 32/);
+    assert.throws(() => planVlsm('10.0.0.0/8', [{ nom: 'A', hotes: 10_000_000_000 }]), /ne peut pas dépasser/);
+  });
+});
+
+describe('caractères invisibles et de contrôle dans les noms', () => {
+  const interdits = {
+    'U+202E (inversion du sens du texte, « Trojan Source »)': ['Admin\u202Etxt.exe', '202E'],
+    'U+200B (espace sans chasse)': ['Ad​min', '200B'],
+    'U+2066 (isolat gauche-à-droite)': ['\u2066Admin', '2066'],
+    'U+FEFF (indicateur d’ordre des octets) au milieu': ['Ad﻿min', 'FEFF'],
+    'U+0000 (caractère nul)': ['Ad\u0000min', '0000'],
+    'U+0009 (tabulation) au milieu': ['Ad\tmin', '0009'],
+    'U+001B (échappement)': ['Ad\u001B[31mmin', '001B'],
+  };
+  for (const [description, [nom, code]] of Object.entries(interdits)) {
+    test(`refuse ${description}`, () => {
+      assert.equal(erreurNom(nom), `le nom contient un caractère invisible ou de contrôle (U+${code}), non autorisé.`);
+    });
+  }
+
+  test('le message ne recopie pas le caractère invisible', () => {
+    assert.throws(
+      () => planVlsm('10.0.0.0/24', [{ nom: 'Admin\u202Etxt.exe', hotes: 2 }]),
+      (erreur) => !erreur.message.includes('\u202E') && erreur.message.includes('U+202E'),
+    );
+  });
+
+  test('accepte les accents, espaces, tirets et emojis simples', () => {
+    for (const nom of ['Salle B12', 'Réseau élèves', 'Wi-Fi invités', 'DMZ_1', '📡 Antennes']) {
+      assert.equal(erreurNom(nom), null, nom);
+    }
   });
 });

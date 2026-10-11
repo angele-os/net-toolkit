@@ -4,7 +4,8 @@
 // Sécurité : jamais d'innerHTML. Tout texte (surtout ce que l'utilisateur a saisi)
 // est inséré avec textContent, qui affiche le texte tel quel sans l'interpréter comme du HTML.
 import { parseCidr, ipToString, analyze } from './ip.js';
-import { planVlsm } from './vlsm.js';
+import { planVlsm, erreurNom, erreurHotes, BESOINS_MAX } from './vlsm.js';
+import { versTexteTabule, versCsv } from './export.js';
 
 /* ==================== Petits utilitaires ==================== */
 
@@ -23,6 +24,9 @@ const nombre = (n) => n.toLocaleString('fr-FR');
 
 // Nombre décimal pour le CSV : virgule décimale (Excel français), sans séparateur de milliers.
 const decimalCsv = (n) => String(n).replace('.', ',');
+
+// Met une majuscule au début d'un message (« le nom est vide. » → « Le nom est vide. »).
+const majuscule = (texte) => texte.charAt(0).toUpperCase() + texte.slice(1);
 
 // Crée un élément avec une classe et un texte (toujours via textContent).
 function creer(balise, classe, texte) {
@@ -128,31 +132,8 @@ function afficherBinaire(conteneur, binaire, prefixe) {
 
 /* ==================== Export : copier et CSV ==================== */
 // Après chaque calcul, on garde ici les données à exporter : { fichier, entetes, lignes }.
+// La mise en forme (et la protection contre l'injection CSV) est dans export.js, testé à part.
 const exportsDisponibles = { ip: null, vlsm: null };
-
-// Protection « injection de formule » : un tableur exécuterait une cellule qui commence par = + - @.
-// On la préfixe d'une apostrophe pour qu'elle reste du texte. Ex. un besoin nommé « =HYPERLINK(...) ».
-function celluleSure(valeur) {
-  const texte = String(valeur);
-  return /^[=+\-@\t\r]/.test(texte) ? `'${texte}` : texte;
-}
-
-// Copie : cellules séparées par des tabulations → collé dans Excel, chaque valeur va dans sa colonne.
-function versTexteTabule({ entetes, lignes }) {
-  return [entetes, ...lignes]
-    .map((ligne) => ligne.map((c) => celluleSure(c).replace(/[\t\r\n]+/g, ' ')).join('\t'))
-    .join('\n');
-}
-
-// CSV avec « ; » (Excel en français utilise la virgule pour les décimales, donc « ; » entre colonnes).
-function versCsv({ entetes, lignes }) {
-  const cellule = (valeur) => {
-    const texte = celluleSure(valeur);
-    // Si la cellule contient ; " ou un retour à la ligne, on l'entoure de guillemets (et on double les ").
-    return /[";\r\n]/.test(texte) ? `"${texte.replaceAll('"', '""')}"` : texte;
-  };
-  return [entetes, ...lignes].map((ligne) => ligne.map(cellule).join(';')).join('\r\n');
-}
 
 function telechargerCsv(nomFichier, contenu) {
   // ﻿ (BOM) : indique à Excel que le fichier est en UTF-8, pour que les accents s'affichent bien.
@@ -322,7 +303,12 @@ function supprimerBesoin(ligne) {
   annoncer('Ligne supprimée.');
 }
 
-// Met à jour « Nom du besoin 2 », « Supprimer le besoin 2 »… et interdit de supprimer la dernière ligne.
+// Message affiché sous « Ajouter un besoin » quand la limite est atteinte (relié par aria-describedby).
+const messageLimite = document.getElementById('besoins-limite');
+const TEXTE_LIMITE = `Limite de ${BESOINS_MAX} besoins atteinte : supprime une ligne pour en ajouter une autre.`;
+
+// Met à jour « Nom du besoin 2 », « Supprimer le besoin 2 »… interdit de supprimer la dernière ligne
+// et désactive « Ajouter » quand la limite BESOINS_MAX (définie dans vlsm.js) est atteinte.
 function renumeroterBesoins() {
   const lignes = [...listeBesoins.children];
   lignes.forEach((ligne, i) => {
@@ -331,10 +317,17 @@ function renumeroterBesoins() {
     bouton.setAttribute('aria-label', `Supprimer le besoin ${i + 1}`);
     bouton.disabled = lignes.length === 1;
   });
+  const plein = lignes.length >= BESOINS_MAX;
+  boutonAjouter.disabled = plein;
+  messageLimite.textContent = plein ? TEXTE_LIMITE : '';
 }
 
 boutonAjouter.addEventListener('click', () => {
+  // Sécurité en plus du bouton désactivé : on ne dépasse jamais la limite.
+  if (listeBesoins.children.length >= BESOINS_MAX) return;
   ajouterBesoin().querySelector('.js-nom').focus();
+  // Le bouton vient d'être désactivé : on l'annonce, sinon un utilisateur de lecteur d'écran ne le saurait pas.
+  if (boutonAjouter.disabled) annoncer(TEXTE_LIMITE);
 });
 
 // Exemple de départ (le cas du TD), modifiable.
@@ -346,22 +339,24 @@ boutonAjouter.addEventListener('click', () => {
 ].forEach(([nom, hotes]) => ajouterBesoin(nom, hotes));
 
 // Vérifie chaque ligne pour afficher l'erreur sous le bon champ.
-// planVlsm() refait ces vérifications : ici, c'est seulement pour guider l'utilisateur.
+// Les règles viennent de vlsm.js (erreurNom, erreurHotes) : un seul endroit les définit,
+// et planVlsm() les applique de toute façon. Ici, c'est pour placer le message au bon endroit.
 function lireBesoins(champsEnErreur) {
   return [...listeBesoins.children].map((ligne) => {
     const champNom = ligne.querySelector('.js-nom');
     const champHotes = ligne.querySelector('.js-hotes');
     const texteHotes = champHotes.value.trim();
 
-    if (champNom.value.trim() === '') {
-      afficherErreur(champNom, 'Donne un nom à ce sous-réseau.');
+    const erreurDuNom = erreurNom(champNom.value);
+    if (erreurDuNom) {
+      afficherErreur(champNom, majuscule(erreurDuNom));
       champsEnErreur.push(champNom);
     }
     let message = '';
     if (texteHotes === '') message = 'Indique le nombre d’hôtes.';
     // Que des chiffres : refuse « 2.5 », « -3 », « dix »…
     else if (!/^\d+$/.test(texteHotes)) message = 'Nombre entier attendu (ex. 50).';
-    else if (Number(texteHotes) < 1) message = 'Il faut au moins 1 hôte.';
+    else message = majuscule(erreurHotes(Number(texteHotes)) ?? '');
     if (message) {
       afficherErreur(champHotes, message);
       champsEnErreur.push(champHotes);

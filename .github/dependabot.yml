@@ -1,0 +1,13 @@
+# Dependabot : propose chaque semaine une pull request quand une action GitHub utilisée
+# dans .github/workflows/ sort en nouvelle version. Il met à jour l'empreinte SHA
+# ET le commentaire de version (# v7.0.1) en même temps.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    # Messages au format Conventional Commits : « chore(deps): bump actions/checkout … »
+    commit-message:
+      prefix: chore
+      include: scope

@@ -9,7 +9,36 @@ import {
   parseCidr,
   addressType,
   analyze,
+  LONGUEUR_MAX_ADRESSE,
 } from '../js/ip.js';
+
+describe('limite de longueur des adresses', () => {
+  test('vaut 40 caractères', () => {
+    assert.equal(LONGUEUR_MAX_ADRESSE, 40);
+  });
+
+  test('accepte la forme la plus longue réellement utile (IP + masque)', () => {
+    assert.deepEqual(parseCidr('255.255.255.255 255.255.255.255'), { ip: 4294967295, prefix: 32 });
+  });
+
+  test('accepte 40 caractères (espaces autour compris)', () => {
+    const texte = `${'192.168.1.0/24'.padStart(27)}${' '.repeat(13)}`;
+    assert.equal(texte.length, 40);
+    assert.deepEqual(parseCidr(texte), parseCidr('192.168.1.0/24'));
+  });
+
+  test('refuse 41 caractères sans recopier le texte dans le message', () => {
+    const texte = ' '.repeat(27) + '192.168.1.0/24';
+    assert.equal(texte.length, 41);
+    assert.throws(() => parseCidr(texte), /Adresse trop longue : 40 caractères au maximum \(41 saisis\)\.$/);
+  });
+
+  test('refuse un texte énorme rapidement, sans le recopier', () => {
+    const enorme = '1.'.repeat(500_000);
+    assert.throws(() => parseCidr(enorme), (erreur) => erreur.message.length < 100);
+    assert.throws(() => parseIp(enorme), /trop longue/);
+  });
+});
 
 describe('parseIp', () => {
   test('convertit une IP en entier', () => {
@@ -82,6 +111,12 @@ describe('maskToPrefix', () => {
     assert.equal(maskToPrefix(parseIp('255.255.255.255')), 32);
   });
 
+  test('refuse ce qui n’est pas un entier 32 bits non signé', () => {
+    for (const valeur of [-1, 2 ** 32, 1.5, '255.255.255.0']) {
+      assert.throws(() => maskToPrefix(valeur), /Masque invalide/);
+    }
+  });
+
   test('refuse les masques non contigus', () => {
     assert.throws(() => maskToPrefix(parseIp('255.0.255.0')));
     assert.throws(() => maskToPrefix(parseIp('255.255.255.1')));
@@ -101,6 +136,18 @@ describe('parseCidr', () => {
     assert.throws(() => parseCidr('192.168.1.37/33'));
     assert.throws(() => parseCidr('192.168.1.37'));
     assert.throws(() => parseCidr('192.168.1.37 255.0.255.0'));
+  });
+
+  test('refuse ce qui n’est pas du texte', () => {
+    assert.throws(() => parseCidr(42), TypeError);
+    assert.throws(() => parseCidr(null), TypeError);
+  });
+
+  test('refuse un préfixe mal écrit', () => {
+    assert.throws(() => parseCidr('10.0.0.0/8/8'), /un seul « \/ »/);
+    for (const texte of ['10.0.0.0/', '10.0.0.0/abc', '10.0.0.0/-8', '10.0.0.0/008', '10.0.0.0/ 8']) {
+      assert.throws(() => parseCidr(texte), /Préfixe invalide/, texte);
+    }
   });
 });
 

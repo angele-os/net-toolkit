@@ -11,6 +11,18 @@ const OCTET = /^(0|[1-9]\d{0,2})$/;
 // Plus grande valeur possible sur 32 bits : 2³² − 1 = 4294967295 (soit 255.255.255.255).
 const MAX_IP = 0xFFFFFFFF;
 
+// Longueur maximale d'une adresse saisie (« 255.255.255.255 255.255.255.255 » fait 31 caractères).
+// Exportée pour que l'interface utilise la même valeur (maxlength) et que les tests la vérifient.
+export const LONGUEUR_MAX_ADRESSE = 40;
+
+// Refuse un texte trop long AVANT de le traiter, sans le recopier dans le message
+// (un texte énorme ne doit ni ralentir le calcul ni remplir l'écran).
+function verifierLongueur(texte) {
+  if (texte.length > LONGUEUR_MAX_ADRESSE) {
+    throw new Error(`Adresse trop longue : ${LONGUEUR_MAX_ADRESSE} caractères au maximum (${texte.length} saisis).`);
+  }
+}
+
 /**
  * Convertit une IP écrite « 192.168.1.10 » en un entier 32 bits non signé.
  * Lève une erreur si le texte n'est pas une IPv4 valide.
@@ -20,6 +32,7 @@ export function parseIp(texte) {
   if (typeof texte !== 'string') {
     throw new TypeError('IP invalide : une chaîne de caractères est attendue.');
   }
+  verifierLongueur(texte);
   // On découpe sur les points : "192.168.1.10" → ["192", "168", "1", "10"].
   const morceaux = texte.split('.');
   // Une IPv4 a exactement 4 octets.
@@ -112,6 +125,7 @@ export function parseCidr(texte) {
   if (typeof texte !== 'string') {
     throw new TypeError('Adresse invalide : une chaîne de caractères est attendue.');
   }
+  verifierLongueur(texte);
   // On retire les espaces au début et à la fin.
   const propre = texte.trim();
 

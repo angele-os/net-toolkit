@@ -253,6 +253,16 @@ a:hover {
 
 /* ========== 5. Composants ========== */
 
+/* --- Message affiché quand JavaScript est désactivé (<noscript>) --- */
+.noscript {
+  margin-bottom: 1.5rem;
+  padding: .9rem 1.1rem;
+  color: var(--text);
+  background: var(--white);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+}
+
 /* --- Onglets (comme le sélecteur de langue du portfolio) --- */
 .tabs {
   display: flex;
@@ -461,6 +471,15 @@ legend {
 .besoins legend {
   padding: 0;
   margin-bottom: .4rem;
+}
+
+/* Message « Limite de 256 besoins atteinte » sous le bouton Ajouter */
+.besoins__limite {
+  margin-top: .5rem;
+}
+
+.besoins__limite:empty {
+  display: none;
 }
 
 .besoins__liste {

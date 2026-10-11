@@ -40,6 +40,48 @@ function decouperEnBlocs(debut, fin) {
   return blocs;
 }
 
+/* ---------- Limites de saisie (exportées : l'interface et les tests utilisent les mêmes valeurs) ---------- */
+
+// Longueur maximale d'un nom de sous-réseau.
+export const NOM_LONGUEUR_MAX = 32;
+// Nombre d'hôtes maximal : 10 chiffres. Bien plus que les 2³² adresses IPv4, donc aucun plan réel n'est bloqué.
+export const HOTES_MAX = 9_999_999_999;
+// Nombre maximal de besoins dans un plan.
+export const BESOINS_MAX = 256;
+
+// Caractères interdits dans un nom : catégories Unicode Cc (contrôle : tabulation, retour chariot…)
+// et Cf (mise en forme invisible : U+202E qui inverse le sens du texte, U+200B espace sans chasse…).
+// Le drapeau « u » active les classes \p{…} (propriétés Unicode).
+const CARACTERE_INVISIBLE = /[\p{Cc}\p{Cf}]/u;
+
+/**
+ * Vérifie un nom de besoin. Renvoie le message d'erreur (en minuscule), ou null si le nom est valide.
+ */
+export function erreurNom(nom) {
+  if (typeof nom !== 'string' || nom.trim() === '') return 'le nom est vide.';
+  // On vérifie le nom tel qu'il sera utilisé : sans espaces au début ni à la fin.
+  const propre = nom.trim();
+  if (propre.length > NOM_LONGUEUR_MAX) {
+    return `le nom dépasse ${NOM_LONGUEUR_MAX} caractères (${propre.length} saisis).`;
+  }
+  const trouve = propre.match(CARACTERE_INVISIBLE);
+  if (trouve) {
+    // On n'affiche PAS le caractère lui-même (U+202E retournerait le message), mais son code : U+202E.
+    const code = trouve[0].codePointAt(0).toString(16).toUpperCase().padStart(4, '0');
+    return `le nom contient un caractère invisible ou de contrôle (U+${code}), non autorisé.`;
+  }
+  return null;
+}
+
+/**
+ * Vérifie un nombre d'hôtes. Renvoie le message d'erreur (en minuscule), ou null s'il est valide.
+ */
+export function erreurHotes(hotes) {
+  if (!Number.isInteger(hotes) || hotes < 1) return 'le nombre d’hôtes doit être un entier d’au moins 1.';
+  if (hotes > HOTES_MAX) return `le nombre d’hôtes ne peut pas dépasser ${HOTES_MAX} (10 chiffres).`;
+  return null;
+}
+
 /**
  * Vérifie la liste des besoins et lève une erreur claire au premier problème.
  */
@@ -47,15 +89,15 @@ function verifierBesoins(besoins) {
   if (!Array.isArray(besoins) || besoins.length === 0) {
     throw new Error('Aucun besoin : ajoute au moins un sous-réseau avec un nom et un nombre d’hôtes.');
   }
+  if (besoins.length > BESOINS_MAX) {
+    throw new Error(`Trop de besoins : ${BESOINS_MAX} au maximum (${besoins.length} reçus).`);
+  }
   besoins.forEach((besoin, i) => {
     // Numéro « humain » du besoin (on commence à 1) pour les messages d'erreur.
     const numero = i + 1;
-    if (typeof besoin?.nom !== 'string' || besoin.nom.trim() === '') {
-      throw new Error(`Besoin n°${numero} : le nom est vide.`);
-    }
-    if (!Number.isInteger(besoin.hotes) || besoin.hotes < 1) {
-      throw new Error(`Besoin « ${besoin.nom} » : le nombre d’hôtes doit être un entier d’au moins 1 (reçu : ${besoin.hotes}).`);
-    }
+    // ?. : si « besoin » n'est pas un objet, on lit undefined au lieu de planter.
+    const erreur = erreurNom(besoin?.nom) ?? erreurHotes(besoin?.hotes);
+    if (erreur) throw new Error(`Besoin n°${numero} : ${erreur}`);
   });
 }
 
