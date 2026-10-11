@@ -272,11 +272,6 @@ a:hover {
   border-radius: var(--r-sm);
 }
 
-/* --- Erreur de lecture d'un lien partagé (au-dessus des onglets) --- */
-.lien-erreur {
-  margin-bottom: 1.25rem;
-}
-
 /* --- Exemples rapides : boutons en pilule --- */
 .exemples {
   display: flex;
@@ -951,7 +946,7 @@ legend {
   }
 }
 
-/* ========== 7. Impression : un plan lisible en noir et blanc, pour le TD ========== */
+/* ========== 7. Impression : un plan d'adressage lisible en noir et blanc ========== */
 @media print {
   /* Paysage : les 8 colonnes du plan VLSM tiennent sur la largeur */
   @page {
@@ -975,7 +970,6 @@ legend {
   .exemples,
   .form,
   .actions,
-  .lien-erreur,
   .noscript {
     display: none !important;
   }

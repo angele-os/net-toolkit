@@ -6,7 +6,6 @@
 import { parseCidr, ipToString, analyze } from './ip.js';
 import { planVlsm, erreurNom, erreurHotes, BESOINS_MAX } from './vlsm.js';
 import { versTexteTabule, versCsv } from './export.js';
-import { lireEtat, ecrireEtat } from './etat.js';
 
 /* ==================== Petits utilitaires ==================== */
 
@@ -152,7 +151,7 @@ function telechargerCsv(nomFichier, contenu) {
 
 const minuteursCopie = new Map();
 
-async function copier(bouton, texte, message = 'Copié') {
+async function copier(bouton, texte) {
   try {
     await navigator.clipboard.writeText(texte);
   } catch {
@@ -162,34 +161,16 @@ async function copier(bouton, texte, message = 'Copié') {
   }
   // L'icône devient une coche (voir .is-copied dans style.css) pendant 2 secondes.
   bouton.classList.add('is-copied');
-  annoncer(message);
+  annoncer('Copié');
   clearTimeout(minuteursCopie.get(bouton));
   minuteursCopie.set(bouton, setTimeout(() => bouton.classList.remove('is-copied'), 2000));
 }
 
-// Boutons « Copier » (tableau) : ceux qui ont un data-export.
-for (const bouton of document.querySelectorAll('.btn-copy[data-export]')) {
+for (const bouton of document.querySelectorAll('.btn-copy')) {
   bouton.addEventListener('click', () => {
     const donnees = exportsDisponibles[bouton.dataset.export];
     if (donnees) copier(bouton, versTexteTabule(donnees));
   });
-}
-
-// Boutons « Copier le lien » : l'adresse actuelle contient l'état du dernier calcul (#…).
-for (const bouton of document.querySelectorAll('.btn-lien')) {
-  bouton.addEventListener('click', () => copier(bouton, window.location.href, 'Lien copié'));
-}
-
-/* ==================== Lien partageable (#…) ==================== */
-
-const messageLien = document.getElementById('lien-erreur');
-
-// Enregistre l'état dans l'adresse après un calcul réussi.
-// replaceState remplace l'adresse SANS recharger la page ni ajouter d'entrée dans l'historique
-// (le bouton « Précédent » ne repasse pas par chaque calcul).
-function enregistrerEtat(etat) {
-  history.replaceState(null, '', `#${ecrireEtat(etat)}`);
-  messageLien.textContent = '';
 }
 
 for (const bouton of document.querySelectorAll('.btn-csv')) {
@@ -279,7 +260,6 @@ formIp.addEventListener('submit', (event) => {
   };
 
   resultatIp.hidden = false;
-  enregistrerEtat({ onglet: 'ip', adresse });
   annoncer(`Résultat affiché : réseau ${r.network}/${prefix}, ${nombre(r.hosts)} hôtes utilisables.`);
 });
 
@@ -358,14 +338,15 @@ boutonAjouter.addEventListener('click', () => {
   if (boutonAjouter.disabled) annoncer(TEXTE_LIMITE);
 });
 
-// Le plan du TD : lignes de départ, et contenu du bouton d'exemple « Plan de TD ».
-const EXEMPLE_TD = {
+// Plan d'exemple (réseau d'une petite entreprise) : lignes de départ, et contenu du bouton
+// « Exemple : 100 / 50 / 20 / 2 hôtes ».
+const EXEMPLE_PLAN = {
   reseau: '192.168.10.0/24',
   besoins: [
-    { nom: 'Admin', hotes: 100 },
-    { nom: 'Prod', hotes: 50 },
-    { nom: 'Wifi', hotes: 20 },
-    { nom: 'Lien routeurs', hotes: 2 },
+    { nom: 'Bureautique', hotes: 100 },
+    { nom: 'Serveurs', hotes: 50 },
+    { nom: 'Wi-Fi invités', hotes: 20 },
+    { nom: 'Lien WAN', hotes: 2 },
   ],
 };
 
@@ -376,7 +357,7 @@ function remplacerBesoins(besoins) {
 }
 
 // Lignes de départ (modifiables).
-remplacerBesoins(EXEMPLE_TD.besoins);
+remplacerBesoins(EXEMPLE_PLAN.besoins);
 
 // Vérifie chaque ligne pour afficher l'erreur sous le bon champ.
 // Les règles viennent de vlsm.js (erreurNom, erreurHotes) : un seul endroit les définit,
@@ -525,12 +506,6 @@ formVlsm.addEventListener('submit', (event) => {
   afficherBarre(plan, tailleReseau);
 
   resultatVlsm.hidden = false;
-  // On enregistre les besoins dans l'ordre de saisie (pas l'ordre trié) : le lien redonne les mêmes lignes.
-  enregistrerEtat({
-    onglet: 'vlsm',
-    reseau: plan.network,
-    besoins: besoins.map((b) => ({ nom: b.nom.trim(), hotes: b.hotes })),
-  });
   annoncer(`Plan calculé : ${plan.subnets.length} sous-réseaux, ${nombre(libres)} adresses libres.`);
 });
 
@@ -611,41 +586,8 @@ for (const bouton of document.querySelectorAll('.js-exemple-ip')) {
   });
 }
 
-document.getElementById('exemple-vlsm-td').addEventListener('click', () => {
-  champReseau.value = EXEMPLE_TD.reseau;
-  remplacerBesoins(EXEMPLE_TD.besoins);
+document.getElementById('exemple-vlsm').addEventListener('click', () => {
+  champReseau.value = EXEMPLE_PLAN.reseau;
+  remplacerBesoins(EXEMPLE_PLAN.besoins);
   formVlsm.requestSubmit();
 });
-
-/* ==================== Restaurer un calcul depuis l'adresse (#…) ==================== */
-// Le fragment vient de N'IMPORTE QUI (un lien reçu par message, un QR code…) : donnée non fiable.
-// lireEtat() (etat.js) le valide avec les mêmes règles que les champs ; ici, on se contente de
-// remplir les champs (.value) et de lancer le calcul normal, qui revérifie tout.
-
-function restaurerDepuisAdresse() {
-  messageLien.textContent = '';
-  try {
-    const etat = lireEtat(window.location.hash);
-    // Fragment vide : rien à restaurer, on garde les valeurs par défaut.
-    if (!etat) return;
-
-    if (etat.onglet === 'ip') {
-      activerOnglet(document.getElementById('tab-ip'), false);
-      champIp.value = etat.adresse;
-      formIp.requestSubmit();
-    } else {
-      activerOnglet(document.getElementById('tab-vlsm'), false);
-      champReseau.value = etat.reseau;
-      remplacerBesoins(etat.besoins);
-      formVlsm.requestSubmit();
-    }
-  } catch (erreur) {
-    // Aucun plantage : on explique le problème (en texte) et l'outil reste utilisable.
-    messageLien.textContent = `Le lien partagé n’a pas pu être lu. ${erreur.message} Les valeurs par défaut sont affichées.`;
-  }
-}
-
-restaurerDepuisAdresse();
-// Si l'utilisateur colle un autre lien #… dans la même page, on le relit aussi.
-// (history.replaceState ne déclenche pas cet événement : pas de boucle après un calcul.)
-window.addEventListener('hashchange', restaurerDepuisAdresse);

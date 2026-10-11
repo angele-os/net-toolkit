@@ -9,7 +9,7 @@
   <meta name="theme-color" content="#FFF8DF">
   <meta name="description" content="Calculateur IPv4 et VLSM : adresse réseau, broadcast, masque, plage utilisable et plan d'adressage. Calculs faits dans le navigateur.">
   <title>net-toolkit — Calculateur IPv4 &amp; VLSM</title>
-  <!-- Référencement : adresse officielle de la page (les liens avec #… pointent vers la même page) -->
+  <!-- Référencement : adresse officielle de la page -->
   <link rel="canonical" href="https://reseau.ange-bonkoski.fr/">
   <!-- Open Graph : aperçu quand le lien est partagé (réseaux sociaux, messageries). L'image viendra plus tard. -->
   <meta property="og:type" content="website">
@@ -46,8 +46,6 @@
       <noscript>
         <p class="noscript">Cet outil a besoin de JavaScript pour faire les calculs : il ne fonctionne pas sans. Active JavaScript dans ton navigateur, puis recharge la page. Aucune donnée n'est envoyée : tout est calculé sur ton appareil.</p>
       </noscript>
-      <!-- Erreur de lecture d'un lien partagé (#…) : rempli par app.js avec textContent -->
-      <p class="field-error lien-erreur" id="lien-erreur" role="alert"></p>
       <div class="tabs" role="tablist" aria-label="Outils">
         <button class="tab" type="button" role="tab" id="tab-ip" aria-controls="panel-ip" aria-selected="true">Analyser une IP</button>
         <button class="tab" type="button" role="tab" id="tab-vlsm" aria-controls="panel-vlsm" aria-selected="false" tabindex="-1">Plan VLSM</button>
@@ -83,11 +81,6 @@
               <p class="results-sub mono" id="ip-resume"></p>
             </div>
             <div class="actions">
-              <button class="btn btn--secondary btn--sm btn-copy btn-lien" type="button">
-                <svg class="icon icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-                <svg class="icon icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
-                <span>Copier le lien</span>
-              </button>
               <button class="btn btn--secondary btn--sm btn-copy" type="button" data-export="ip">
                 <svg class="icon icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                 <svg class="icon icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
@@ -122,9 +115,8 @@
 
       <!-- ===== Onglet 2 : plan VLSM ===== -->
       <section class="tabpanel" id="panel-vlsm" role="tabpanel" aria-labelledby="tab-vlsm" tabindex="0" hidden>
-        <div class="exemples" role="group" aria-labelledby="exemples-vlsm-titre">
-          <span class="exemples__titre" id="exemples-vlsm-titre">Exemple :</span>
-          <button class="pill" type="button" id="exemple-vlsm-td">Plan de TD : 100 / 50 / 20 / 2 hôtes</button>
+        <div class="exemples" role="group" aria-label="Exemple rapide">
+          <button class="pill" type="button" id="exemple-vlsm">Exemple : 100 / 50 / 20 / 2 hôtes</button>
         </div>
 
         <form class="form" id="form-vlsm" novalidate>
@@ -160,11 +152,6 @@
               <p class="results-sub mono" id="vlsm-resume"></p>
             </div>
             <div class="actions">
-              <button class="btn btn--secondary btn--sm btn-copy btn-lien" type="button">
-                <svg class="icon icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-                <svg class="icon icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
-                <span>Copier le lien</span>
-              </button>
               <button class="btn btn--secondary btn--sm btn-copy" type="button" data-export="vlsm">
                 <svg class="icon icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                 <svg class="icon icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>

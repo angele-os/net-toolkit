@@ -1,6 +1,6 @@
 # Politique de sécurité
 
-> **English summary.** net-toolkit is a static, client-side IPv4/VLSM calculator: no server, no database, no account, no cookie, and no data ever leaves the browser. To report a vulnerability, please use GitHub's **private vulnerability reporting** ([Security → Report a vulnerability](https://github.com/angele-os/net-toolkit/security/advisories/new)) instead of a public issue. The threat model below covers XSS (textContent only, strict CSP with Trusted Types), crafted shareable links (the URL fragment is treated as untrusted input and validated like form fields), CSV/formula injection (OWASP-style escaping, unit-tested), oversized input (length limits in both the pure functions and the HTML), invisible/bidirectional Unicode characters (Cc/Cf categories rejected), supply chain (zero npm dependencies, self-hosted fonts, SHA-pinned GitHub Actions updated by Dependabot), secret leakage, accepted clickjacking risk, and subdomain takeover.
+> **English summary.** net-toolkit is a static, client-side IPv4/VLSM calculator: no server, no database, no account, no cookie, and no data ever leaves the browser. To report a vulnerability, please use GitHub's **private vulnerability reporting** ([Security → Report a vulnerability](https://github.com/angele-os/net-toolkit/security/advisories/new)) instead of a public issue. The page ignores the URL entirely: the shareable-link feature was deliberately removed to reduce the attack surface, so no outside data enters the page. The threat model below covers XSS (textContent only, strict CSP with Trusted Types), CSV/formula injection (OWASP-style escaping, unit-tested), oversized input (length limits in both the pure functions and the HTML), invisible/bidirectional Unicode characters (Cc/Cf categories rejected), supply chain (zero npm dependencies, self-hosted fonts, SHA-pinned GitHub Actions updated by Dependabot), secret leakage, accepted clickjacking risk, and subdomain takeover.
 
 ## Signaler une faille
 
@@ -14,15 +14,15 @@ Indique si possible :
 - les étapes pour reproduire le problème (la saisie exacte, le fichier CSV produit…) ;
 - l'impact que tu envisages.
 
-C'est un projet personnel d'étudiant, maintenu sur mon temps libre. J'essaie de répondre sous 7 jours, sans garantie. Seule la dernière version de la branche `main` est maintenue.
+C'est un projet personnel, maintenu sur mon temps libre. J'essaie de répondre sous 7 jours, sans garantie. Seule la dernière version de la branche `main` est maintenue.
 
 ## Modèle de menace
 
 ### Ce que l'outil est (et n'est pas)
 
 - **Une page web statique.** HTML, CSS et JavaScript sont exécutés entièrement dans le navigateur.
-- **Aucune donnée n'est envoyée ni stockée côté serveur.** Il n'y a pas de serveur applicatif, pas de base de données, pas de compte, pas de cookie, pas de `localStorage`. La CSP l'impose techniquement : `default-src 'none'` sans `connect-src` interdit toute requête réseau depuis le JavaScript.
-- **Seule exception, visible : le lien partageable.** Après un calcul, les valeurs saisies sont écrites dans l'adresse de la page, après le `#`. Ce fragment n'est **jamais envoyé au serveur** (le navigateur ne le transmet pas dans la requête HTTP ni dans l'en-tête `Referer`), mais il reste dans l'historique du navigateur et dans tout lien copié. Les noms de sous-réseaux ne doivent donc pas contenir d'information confidentielle si le lien est partagé.
+- **Aucune donnée n'est envoyée ni stockée.** Il n'y a pas de serveur applicatif, pas de base de données, pas de compte, pas de cookie, pas de `localStorage`. La CSP l'impose techniquement : `default-src 'none'` sans `connect-src` interdit toute requête réseau depuis le JavaScript.
+- **Aucune donnée extérieure n'entre dans la page.** Les seules entrées sont les champs du formulaire. L'adresse de la page (y compris ce qui suit le `#`) est ignorée : aucun code ne lit `location` ni l'historique, ce que vérifie un test.
 - **Ce qu'on protège :** le navigateur de la personne qui utilise l'outil, l'ordinateur de la personne qui ouvre un CSV exporté, et l'intégrité du code publié.
 
 ### Risques et protections
@@ -31,7 +31,7 @@ C'est un projet personnel d'étudiant, maintenu sur mon temps libre. J'essaie de
 |---|---|---|
 | Injection SQL | Non | Pas de base de données |
 | XSS (injection de script) | Oui | `textContent` uniquement, CSP stricte, Trusted Types |
-| Lien partageable piégé (`#…`) | Oui | Donnée non fiable : longueur max, `URLSearchParams`, mêmes validations que les champs |
+| Lien partageable | Retiré | Fonctionnalité retirée volontairement pour réduire la surface d'attaque (aucune donnée extérieure n'entre dans la page) |
 | Injection CSV (formules) | Oui | Apostrophe devant `= + - @` tabulation retour chariot, guillemets |
 | Saisies énormes | Oui | Limites dans les fonctions pures **et** `maxlength` |
 | Caractères invisibles | Oui | Catégories Unicode Cc et Cf refusées dans les noms |
@@ -54,18 +54,6 @@ Les protections :
 - **Trusted Types** : `require-trusted-types-for 'script'; trusted-types 'none'`. Le navigateur refuse toute écriture de texte dans une fonction dangereuse (`innerHTML`, `eval`…), même si du code en ajoutait une par erreur plus tard. Cette directive est appliquée par les navigateurs qui la prennent en charge.
 - **`base-uri 'none'`** (empêche de détourner les liens relatifs avec une balise `<base>`) et **`object-src 'none'`** (pas de plugins).
 - Un test (`tests/html.test.js`) vérifie que la CSP contient ces directives et que le HTML ne contient aucun script, style ou gestionnaire d'événement en ligne.
-
-#### Lien partageable piégé (fragment `#…`)
-
-Le risque : le lien partageable (par exemple `#vlsm=192.168.10.0/24&nom=Admin&hotes=100`) est lu automatiquement à l'ouverture de la page. **N'importe qui peut fabriquer un tel lien** et l'envoyer à une victime par message, courriel ou QR code. Sans validation, ce lien pourrait injecter du HTML dans la page (XSS), faire planter l'outil ou le bloquer avec un fragment énorme, ou glisser des caractères invisibles et des formules dans un CSV que la victime exportera ensuite.
-
-La protection (`js/etat.js`, testée dans `tests/etat.test.js`) : le fragment est traité **exactement comme une saisie au clavier**.
-- **Longueur maximale** vérifiée avant toute lecture. Elle est calculée à partir des limites de saisie (256 besoins de 32 caractères), et le message d'erreur ne recopie pas le fragment.
-- **Découpage avec `URLSearchParams`**, qui ne lève pas d'exception sur un encodage `%` invalide (contrairement à `decodeURIComponent`).
-- **Validation par les mêmes fonctions et limites que les champs** : `parseCidr` (40 caractères), `erreurNom` (32 caractères, pas de caractère Cc/Cf), `erreurHotes` (1 à 10 chiffres, rien d'autre que `0-9`), 256 besoins au maximum. Un seul mode (`ip` ou `vlsm`) est accepté.
-- Les valeurs validées sont placées dans les champs avec `.value`, puis le **calcul normal** est lancé : il revérifie tout (alignement du réseau, capacité) et affiche ses erreurs sous les champs.
-- **Aucun plantage** : toute erreur de lecture est affichée en texte (`textContent`) au-dessus des onglets, et l'outil reste utilisable avec ses valeurs par défaut.
-- Le fragment n'est jamais utilisé pour naviguer (`location = …`) ni pour charger une ressource. `history.replaceState` n'écrit qu'un fragment sur la même page.
 
 #### Injection CSV (injection de formule)
 

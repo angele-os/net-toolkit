@@ -1,7 +1,8 @@
 # Consignes pour Claude Code — net-toolkit
 
 ## Qui je suis
-- Étudiant en BUT Informatique (réseaux et cybersécurité). Je débute complètement en programmation.
+- Projet personnel, sans lien avec mes études : ne mentionne jamais l'école, les cours, les TD/TP, l'ENT, les enseignants ou les camarades, ni dans le code, ni dans les textes, ni dans tes exemples ou explications. Pour illustrer, prends des exemples d'entreprise ou de réseau domestique.
+- Je débute complètement en programmation.
 - Réponds en français et tutoie-moi.
 
 ## Comment travailler avec moi

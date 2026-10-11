@@ -42,8 +42,8 @@ describe('versCsv', () => {
   });
 
   test('double les guillemets et entoure la cellule de guillemets', () => {
-    const csv = versCsv({ entetes: ['Nom'], lignes: [['Salle "B12"']] });
-    assert.equal(csv, 'Nom\r\n"Salle ""B12"""');
+    const csv = versCsv({ entetes: ['Nom'], lignes: [['Baie "B12"']] });
+    assert.equal(csv, 'Nom\r\n"Baie ""B12"""');
   });
 
   test('entoure de guillemets une cellule qui contient ;', () => {

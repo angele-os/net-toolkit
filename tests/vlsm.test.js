@@ -3,12 +3,12 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { planVlsm, erreurNom, erreurHotes, NOM_LONGUEUR_MAX, HOTES_MAX, BESOINS_MAX } from '../js/vlsm.js';
 
-// Besoins du cas de référence (TD classique).
+// Besoins du cas de référence : réseau d'une petite entreprise (même exemple que la page).
 const BESOINS_REFERENCE = [
-  { nom: 'Admin', hotes: 100 },
-  { nom: 'Prod', hotes: 50 },
-  { nom: 'Wifi', hotes: 20 },
-  { nom: 'Lien', hotes: 2 },
+  { nom: 'Bureautique', hotes: 100 },
+  { nom: 'Serveurs', hotes: 50 },
+  { nom: 'Wi-Fi invités', hotes: 20 },
+  { nom: 'Lien WAN', hotes: 2 },
 ];
 
 describe('planVlsm : cas de référence 192.168.10.0/24', () => {
@@ -19,7 +19,7 @@ describe('planVlsm : cas de référence 192.168.10.0/24', () => {
       plan.subnets.map((s) => s.cidr),
       ['192.168.10.0/25', '192.168.10.128/26', '192.168.10.192/27', '192.168.10.224/30'],
     );
-    assert.deepEqual(plan.subnets.map((s) => s.name), ['Admin', 'Prod', 'Wifi', 'Lien']);
+    assert.deepEqual(plan.subnets.map((s) => s.name), ['Bureautique', 'Serveurs', 'Wi-Fi invités', 'Lien WAN']);
   });
 
   test('détaille chaque sous-réseau', () => {
@@ -167,7 +167,7 @@ describe('caractères invisibles et de contrôle dans les noms', () => {
   });
 
   test('accepte les accents, espaces, tirets et emojis simples', () => {
-    for (const nom of ['Salle B12', 'Réseau élèves', 'Wi-Fi invités', 'DMZ_1', '📡 Antennes']) {
+    for (const nom of ['Baie B12', 'Réseau maison', 'Wi-Fi invités', 'DMZ_1', '📡 Antennes']) {
       assert.equal(erreurNom(nom), null, nom);
     }
   });

@@ -92,6 +92,15 @@ describe('référencement', () => {
   });
 });
 
+test('la page ignore l’adresse : aucun code ne lit ni n’écrit location, le # ou l’historique', () => {
+  // Le lien partageable a été retiré pour réduire la surface d'attaque : aucune donnée extérieure
+  // ne doit entrer dans la page par l'adresse. Ce test empêche de la réintroduire par accident.
+  for (const fichier of readdirSync(new URL('../js/', import.meta.url))) {
+    const code = lire(`js/${fichier}`);
+    assert.doesNotMatch(code, /\blocation\b|\.hash\b|hashchange|\bhistory\b|replaceState|pushState|URLSearchParams/, `js/${fichier}`);
+  }
+});
+
 test('aucun caractère invisible ou de contrôle dans le code source (Trojan Source)', () => {
   const fichiers = [
     'index.html', '404.html', 'css/style.css',
