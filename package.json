@@ -2,7 +2,6 @@
   "name": "net-toolkit",
   "version": "1.0.0",
   "description": "IPv4 subnet and VLSM calculator with a Cisco config generator — vanilla JavaScript, fully tested.",
-  "main": "index.js",
   "scripts": {
     "test": "node --test"
   },
@@ -11,8 +10,8 @@
     "url": "git+https://github.com/angele-os/net-toolkit.git"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "Ange Bonkoski",
+  "license": "MIT",
   "type": "module",
   "bugs": {
     "url": "https://github.com/angele-os/net-toolkit/issues"
