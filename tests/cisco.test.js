@@ -11,6 +11,8 @@ import {
   PORTS_SWITCH,
   VLANS_MAX,
   DEFAUTS,
+  ErreurSaisie,
+  propositionsPourPlan,
 } from '../js/cisco.js';
 
 const lireFixture = (nom) => readFileSync(new URL(`fixtures/${nom}`, import.meta.url), 'utf8');
@@ -249,8 +251,8 @@ describe('erreurs : VLAN', () => {
   });
 
   test('doublons d’identifiant, y compris avec natif, parking et management', () => {
-    refuse((e) => (e.vlans[1].id = 10), /Identifiant du VLAN n°2 : 10 est déjà pris par le VLAN n°1\./);
-    refuse((e) => (e.vlans[0].id = 99), /Identifiant du VLAN n°1 : 99 est déjà pris par le VLAN natif\./);
+    refuse((e) => (e.vlans[1].id = 10), /Identifiant du VLAN n°2 : 10 est déjà pris par le VLAN 10 « Bureautique »\./);
+    refuse((e) => (e.vlans[0].id = 99), /Identifiant du VLAN n°1 : 99 est déjà pris par le VLAN natif \(99\)\./);
     refuse((e) => (e.vlans[0].id = 999), /déjà pris par le VLAN parking/);
     refuse((e) => (e.vlans[0].id = 90), /déjà pris par le VLAN de management/);
     refuse((e) => (e.vlanParking = { id: 99 }), /Identifiant du VLAN parking : 99 est déjà pris par le VLAN natif/);
@@ -261,7 +263,7 @@ describe('erreurs : VLAN', () => {
     refuse((e) => (e.vlans[0].nom = 'n'.repeat(33)), /32 caractères au maximum \(33 saisis\)/);
     refuse((e) => (e.vlans[0].nom = 'Salle réunion'), /l’espace n’est pas autorisé/);
     refuse((e) => (e.vlans[0].nom = 'Réunion'), /le caractère « é »/);
-    refuse((e) => (e.vlans[1].nom = 'BUREAUTIQUE'), /« BUREAUTIQUE » est déjà pris par le VLAN n°1/);
+    refuse((e) => (e.vlans[1].nom = 'BUREAUTIQUE'), /« BUREAUTIQUE » est déjà pris par le VLAN 10 « Bureautique »/);
     refuse((e) => (e.vlanNatif = { id: 98, nom: 'Serveurs' }), /Nom du VLAN n°2 : « Serveurs » est déjà pris par le VLAN natif/);
   });
 
@@ -298,9 +300,9 @@ describe('erreurs : sous-réseaux et adresses', () => {
         // Sans passerelle, la première adresse utilisable (.65) est prise : seul le chevauchement est en cause.
         delete e.vlans[1].passerelle;
       },
-      /Sous-réseau du VLAN n°2 : 192\.168\.10\.64\/26 chevauche celui du VLAN n°1 \(192\.168\.10\.0\/25\)/,
+      /Sous-réseau du VLAN n°2 : 192\.168\.10\.64\/26 chevauche celui du VLAN 10 « Bureautique » \(192\.168\.10\.0\/25\)/,
     );
-    refuse((e) => (e.management.reseau = '192.168.10.192/28'), /VLAN de management : .* chevauche celui du VLAN n°3/);
+    refuse((e) => (e.management.reseau = '192.168.10.192/28'), /VLAN de management : .* chevauche celui du VLAN 30 « Wi-Fi_invites »/);
   });
 
   test('passerelle hors du sous-réseau, adresse réseau ou broadcast', () => {
@@ -334,7 +336,7 @@ describe('erreurs : ports', () => {
     refuse((e) => (e.vlans[2].ports = 'Fa0/19-25'), /le port Fa0\/25 n'existe pas sur un 2960-24TT \(Fa0\/1 à Fa0\/24\)/);
     refuse((e) => (e.vlans[2].ports = 'Gi0/3'), /le port Gi0\/3 n'existe pas/);
     for (const ports of ['Fa0/0', 'Fa1/1', 'Eth0/1', 'Fa0/01', 'FastEthernet0/1', 'Fa0/1-Gi0/2', 'Fa0/1,Fa0/3', '']) {
-      refuse((e) => (e.vlans[2].ports = ports), /n'est pas une plage valide/);
+      refuse((e) => (e.vlans[2].ports = ports), /plage( « .* »)? invalide, écris par exemple/);
     }
   });
 
@@ -343,7 +345,7 @@ describe('erreurs : ports', () => {
   });
 
   test('chevauchement entre VLAN ou avec le trunk', () => {
-    refuse((e) => (e.vlans[1].ports = 'Fa0/12-18'), /Ports du VLAN n°2 : Fa0\/12 est déjà pris par le VLAN n°1\./);
+    refuse((e) => (e.vlans[1].ports = 'Fa0/12-18'), /Ports du VLAN n°2 : Fa0\/12 est déjà pris par le VLAN 10 « Bureautique »\./);
     refuse((e) => (e.vlans[2].ports = 'Gi0/1-2'), /Gi0\/1 est déjà pris par le port trunk/);
   });
 
@@ -425,5 +427,110 @@ describe('tentatives d’injection de commandes', () => {
     for (const entree of [null, undefined, 'SW1', 42]) {
       assert.throws(() => genererConfigurations(entree), /Entrée invalide/);
     }
+  });
+});
+
+describe('chaque erreur indique le champ en cause (pour l’afficher sous le bon champ)', () => {
+  // [modification de l'entrée, chemin attendu dans erreur.champ]
+  const cas = [
+    [(e) => (e.switch.hostname = '1SW'), 'switch.hostname'],
+    [(e) => (e.routeur.hostname = 'SW-SIEGE'), 'routeur.hostname'],
+    [(e) => (e.switch.trunk = 'Gi0/3'), 'switch.trunk'],
+    [(e) => (e.vlans[1].id = 1003), 'vlans.1.id'],
+    [(e) => (e.vlans[1].id = 10), 'vlans.1.id'],
+    [(e) => (e.vlans[2].nom = 'Serveurs'), 'vlans.2.nom'],
+    [(e) => (e.vlans[0].reseau = '192.168.10.5/25'), 'vlans.0.reseau'],
+    [(e) => (e.vlans[0].passerelle = '10.0.0.1'), 'vlans.0.passerelle'],
+    [(e) => (e.vlans[2].ports = 'Fa0/18-22'), 'vlans.2.ports'],
+    [(e) => (e.vlans = []), 'vlans'],
+    [(e) => (e.vlanNatif = { id: 1002 }), 'vlanNatif.id'],
+    [(e) => (e.vlanParking = { id: 999, nom: 'PARK ING' }), 'vlanParking.nom'],
+    // Doublon avec le natif (enregistré avant le management) : c'est le management qui est signalé.
+    [(e) => (e.management.id = 99), 'management.id'],
+    [(e) => (e.management.reseau = '192.168.10.192/28'), 'management.reseau'],
+    [(e) => (e.management.passerelle = '192.168.10.238'), 'management.passerelle'],
+    [(e) => (e.portSecurity = { maximum: 0 }), 'portSecurity.maximum'],
+    [(e) => (e.portSecurity = { violation: 'drop' }), 'portSecurity.violation'],
+    [(e) => (e.dns = '127.0.0.1'), 'dns'],
+    [(e) => (e.domaine = 'a..b'), 'domaine'],
+    [(e) => (e.banniere = 'A#B'), 'banniere'],
+  ];
+  for (const [modifier, champ] of cas) {
+    test(champ, () => {
+      assert.throws(
+        () => generer(modifier),
+        // detail : le message sans son sujet (affiché sous le champ, dont l'étiquette dit déjà le sujet).
+        (erreur) => erreur instanceof ErreurSaisie && erreur.champ === champ && erreur.message.endsWith(` : ${erreur.detail}`),
+      );
+    });
+  }
+
+  test('detail ne contient pas le sujet', () => {
+    assert.throws(
+      () => generer((e) => (e.switch.hostname = '')),
+      (erreur) => erreur.detail === 'le texte est vide.' && erreur.message === 'Hostname du switch : le texte est vide.',
+    );
+  });
+});
+
+describe('propositionsPourPlan (valeurs de départ de l’interface)', () => {
+  // Le plan d'exemple de la page : 100 / 50 / 20 / 2 hôtes.
+  const plan = planVlsm('192.168.10.0/24', [
+    { nom: 'Bureautique', hotes: 100 },
+    { nom: 'Serveurs', hotes: 50 },
+    { nom: 'Wi-Fi invités', hotes: 20 },
+    { nom: 'Lien WAN', hotes: 2 },
+  ]);
+  const propositions = propositionsPourPlan(plan);
+
+  test('numéros 10, 20, 30, 40 et noms dérivés', () => {
+    assert.deepEqual(propositions.vlans.map((v) => v.id), [10, 20, 30, 40]);
+    assert.deepEqual(propositions.vlans.map((v) => v.nom), ['Bureautique', 'Serveurs', 'Wi-Fi_invites', 'Lien_WAN']);
+  });
+
+  test('le /30 n’est pas coché et ne reçoit pas de ports ; les 24 ports sont partagés entre les autres', () => {
+    assert.deepEqual(propositions.vlans.map((v) => v.creer), [true, true, true, false]);
+    assert.deepEqual(propositions.vlans.map((v) => v.ports), ['Fa0/1-8', 'Fa0/9-16', 'Fa0/17-24', '']);
+  });
+
+  test('management : le plus grand bloc libre et le numéro suivant', () => {
+    // Blocs libres : .228/30, .232/29, .240/28 → le /28.
+    assert.deepEqual(propositions.management, { id: 50, nom: 'MANAGEMENT', reseau: '192.168.10.240/28' });
+  });
+
+  test('partage inégal : le reste va aux premiers VLAN', () => {
+    const cinq = planVlsm('10.0.0.0/24', ['A', 'B', 'C', 'D', 'E'].map((nom) => ({ nom, hotes: 10 })));
+    assert.deepEqual(propositionsPourPlan(cinq).vlans.map((v) => v.ports), ['Fa0/1-5', 'Fa0/6-10', 'Fa0/11-15', 'Fa0/16-20', 'Fa0/21-24']);
+  });
+
+  test('24 ports pour 30 sous-réseaux : seuls les 24 premiers sont cochés, un port chacun', () => {
+    const trente = planVlsm('10.0.0.0/16', Array.from({ length: 30 }, (_, i) => ({ nom: `S${i + 1}`, hotes: 10 })));
+    const vlans = propositionsPourPlan(trente).vlans;
+    assert.equal(vlans.filter((v) => v.creer).length, 24);
+    assert.equal(vlans[0].ports, 'Fa0/1');
+    assert.equal(vlans[23].ports, 'Fa0/24');
+    assert.equal(vlans[24].ports, '');
+  });
+
+  test('plan qui remplit tout le réseau : pas de sous-réseau proposé pour le management', () => {
+    const plein = planVlsm('10.0.0.0/24', [{ nom: 'A', hotes: 126 }, { nom: 'B', hotes: 126 }]);
+    assert.equal(propositionsPourPlan(plein).management.reseau, '');
+  });
+
+  test('les propositions donnent une configuration valide', () => {
+    const vlans = depuisPlanVlsm(plan, propositions.vlans.map((v) => (v.creer ? { id: v.id, ports: v.ports } : null)));
+    assert.doesNotThrow(() =>
+      genererConfigurations({
+        switch: { hostname: 'SW1' },
+        routeur: { hostname: 'R1' },
+        vlans,
+        management: propositions.management,
+        dns: '1.1.1.1',
+      }),
+    );
+  });
+
+  test('refuse autre chose qu’un plan', () => {
+    assert.throws(() => propositionsPourPlan({}), /Plan VLSM invalide/);
   });
 });

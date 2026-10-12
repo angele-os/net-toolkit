@@ -2,9 +2,18 @@
 // caractères invisibles. On lit les fichiers comme du texte : pas besoin de navigateur.
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { LONGUEUR_MAX_ADRESSE } from '../js/ip.js';
 import { NOM_LONGUEUR_MAX, HOTES_MAX } from '../js/vlsm.js';
+import {
+  HOSTNAME_LONGUEUR_MAX,
+  NOM_VLAN_LONGUEUR_MAX,
+  DOMAINE_LONGUEUR_MAX,
+  BANNIERE_LONGUEUR_MAX,
+  PLAGE_LONGUEUR_MAX,
+  MAC_PAR_PORT_MAX,
+  MARQUEUR,
+} from '../js/cisco.js';
 
 const lire = (chemin) => readFileSync(new URL(`../${chemin}`, import.meta.url), 'utf8');
 const html = lire('index.html');
@@ -23,6 +32,89 @@ test('les maxlength du HTML correspondent aux limites des fonctions pures', () =
   assert.equal(maxlength('js-nom'), NOM_LONGUEUR_MAX);
   // 10 chiffres : la longueur du nombre maximal écrit en décimal.
   assert.equal(maxlength('js-hotes'), String(HOTES_MAX).length);
+});
+
+test('générateur Cisco : les maxlength correspondent aux limites de cisco.js', () => {
+  const attendus = {
+    'id="cisco-hostname-switch"': HOSTNAME_LONGUEUR_MAX,
+    'id="cisco-hostname-routeur"': HOSTNAME_LONGUEUR_MAX,
+    'id="cisco-trunk"': PLAGE_LONGUEUR_MAX,
+    'js-vlan-ports': PLAGE_LONGUEUR_MAX,
+    'id="cisco-domaine"': DOMAINE_LONGUEUR_MAX,
+    'js-vlan-nom': NOM_VLAN_LONGUEUR_MAX,
+    'id="cisco-natif-nom"': NOM_VLAN_LONGUEUR_MAX,
+    'id="cisco-mgmt-nom"': NOM_VLAN_LONGUEUR_MAX,
+    'id="cisco-mgmt-reseau"': LONGUEUR_MAX_ADRESSE,
+    'id="cisco-dns"': LONGUEUR_MAX_ADRESSE,
+    'id="cisco-banniere"': BANNIERE_LONGUEUR_MAX,
+    // Numéros de VLAN : 4 chiffres (4094) ; adresses MAC par port : 2 chiffres (64).
+    'js-vlan-id': String(4094).length,
+    'id="cisco-natif-id"': String(4094).length,
+    'id="cisco-mgmt-id"': String(4094).length,
+    'id="cisco-ps-max"': String(MAC_PAR_PORT_MAX).length,
+  };
+  for (const [repere, limite] of Object.entries(attendus)) assert.equal(maxlength(repere), limite, repere);
+});
+
+describe('générateur Cisco : page', () => {
+  test('trois onglets, chacun relié à son panneau', () => {
+    const onglets = [...html.matchAll(/role="tab" id="([\w-]+)" aria-controls="([\w-]+)"/g)];
+    assert.deepEqual(onglets.map((o) => o[1]), ['tab-ip', 'tab-vlsm', 'tab-cisco']);
+    for (const [, onglet, panneau] of onglets) {
+      assert.match(html, new RegExp(`id="${panneau}" role="tabpanel" aria-labelledby="${onglet}"`));
+    }
+  });
+
+  test('l’avertissement « à relire et à tester » est présent, avec le marqueur à remplacer', () => {
+    // Dans le HTML, < et > du marqueur s'écrivent &lt; et &gt;.
+    const marqueur = MARQUEUR.replace('<', '&lt;').replace('>', '&gt;');
+    assert.ok(
+      html.includes(
+        'Configuration à relire et à tester (par exemple dans Packet Tracer) avant tout usage sur un équipement réel.',
+      ),
+    );
+    assert.ok(html.includes(`Remplace les marqueurs <code>${marqueur}</code>.`));
+  });
+
+  test('le bouton d’envoi depuis le plan VLSM existe', () => {
+    assert.match(html, /id="btn-envoyer-cisco"[\s\S]*?Envoyer vers le générateur Cisco/);
+  });
+
+  test('chaque bouton Copier ou Télécharger des configurations vise le switch ou le routeur', () => {
+    const cibles = [...html.matchAll(/class="[^"]*\b(btn-copy|btn-txt)\b[^"]*" type="button" data-config="(\w+)"/g)];
+    assert.deepEqual(cibles.map((c) => `${c[1]}:${c[2]}`), ['btn-copy:switch', 'btn-txt:switch', 'btn-copy:routeur', 'btn-txt:routeur']);
+  });
+});
+
+test('README.md et SECURITY.md : chaque lien ou image relatif pointe vers un fichier existant', () => {
+  let verifies = 0;
+  for (const document of ['README.md', 'SECURITY.md']) {
+    // « ](cible) » : la cible d'un lien ou d'une image Markdown. On ignore les adresses web et les ancres (#…).
+    const cibles = [...lire(document).matchAll(/\]\(([^)\s]+)\)/g)]
+      .map((m) => m[1])
+      .filter((cible) => !/^(https?:|mailto:|#)/.test(cible));
+    for (const cible of cibles) {
+      assert.ok(existsSync(new URL(`../${cible.split('#')[0]}`, import.meta.url)), `${document} : ${cible} introuvable`);
+      verifies++;
+    }
+  }
+  // Garde-fou : si l'expression ne trouvait plus aucun lien, le test passerait sans rien vérifier.
+  assert.ok(verifies >= 5, `seulement ${verifies} liens relatifs vérifiés`);
+});
+
+test('style.css : l’attribut hidden cache toujours l’élément, même avec un display: grid', () => {
+  assert.match(lire('css/style.css'), /\[hidden\]\s*\{\s*display:\s*none\s*!important;\s*\}/);
+});
+
+test('aucun code JavaScript n’écrit du HTML (innerHTML, outerHTML, insertAdjacentHTML, document.write)', () => {
+  for (const fichier of readdirSync(new URL('../js/', import.meta.url))) {
+    // On cherche l'UTILISATION (affectation ou appel), pas le mot : les commentaires disent « jamais d'innerHTML ».
+    assert.doesNotMatch(
+      lire(`js/${fichier}`),
+      /\.(innerHTML|outerHTML)\s*\+?=|insertAdjacentHTML\s*\(|document\.write(ln)?\s*\(/,
+      `js/${fichier}`,
+    );
+  }
 });
 
 for (const [nom, page] of Object.entries(PAGES)) {

@@ -1,4 +1,4 @@
-// Interface de net-toolkit : relie la page (index.html) aux calculs (ip.js, vlsm.js).
+// Interface de net-toolkit : relie la page (index.html) aux calculs (ip.js, vlsm.js, cisco.js).
 // Ce fichier ne fait AUCUN calcul réseau : il lit les champs, appelle les fonctions pures,
 // puis affiche les résultats.
 // Sécurité : jamais d'innerHTML. Tout texte (surtout ce que l'utilisateur a saisi)
@@ -6,6 +6,14 @@
 import { parseCidr, ipToString, analyze } from './ip.js';
 import { planVlsm, erreurNom, erreurHotes, BESOINS_MAX } from './vlsm.js';
 import { versTexteTabule, versCsv } from './export.js';
+import {
+  genererConfigurations,
+  depuisPlanVlsm,
+  propositionsPourPlan,
+  ErreurSaisie,
+  DEFAUTS,
+  VLANS_MAX,
+} from './cisco.js';
 
 /* ==================== Petits utilitaires ==================== */
 
@@ -135,9 +143,9 @@ function afficherBinaire(conteneur, binaire, prefixe) {
 // La mise en forme (et la protection contre l'injection CSV) est dans export.js, testé à part.
 const exportsDisponibles = { ip: null, vlsm: null };
 
-function telechargerCsv(nomFichier, contenu) {
-  // \uFEFF (BOM, écrit avec son code pour rester visible dans le code) : indique à Excel que le fichier est en UTF-8, pour que les accents s'affichent bien.
-  const blob = new Blob(['\uFEFF', contenu], { type: 'text/csv;charset=utf-8' });
+// Lance le téléchargement d'un fichier fabriqué dans la page (un Blob) : rien n'est envoyé à un serveur.
+function telecharger(nomFichier, blob) {
+  // Adresse temporaire, valable seulement dans cette page, qui pointe vers le Blob.
   const url = URL.createObjectURL(blob);
   const lien = creer('a');
   lien.href = url;
@@ -147,6 +155,12 @@ function telechargerCsv(nomFichier, contenu) {
   lien.remove();
   // On libère la mémoire un peu après le début du téléchargement.
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function telechargerCsv(nomFichier, contenu) {
+  // \uFEFF (BOM, écrit avec son code pour rester visible dans le code) : indique à Excel que le fichier est en UTF-8, pour que les accents s'affichent bien.
+  const blob = new Blob(['\uFEFF', contenu], { type: 'text/csv;charset=utf-8' });
+  telecharger(nomFichier, blob);
 }
 
 const minuteursCopie = new Map();
@@ -166,7 +180,8 @@ async function copier(bouton, texte) {
   minuteursCopie.set(bouton, setTimeout(() => bouton.classList.remove('is-copied'), 2000));
 }
 
-for (const bouton of document.querySelectorAll('.btn-copy')) {
+// [data-export] : les boutons des tableaux (onglets 1 et 2). Ceux des configurations Cisco ont data-config.
+for (const bouton of document.querySelectorAll('.btn-copy[data-export]')) {
   bouton.addEventListener('click', () => {
     const donnees = exportsDisponibles[bouton.dataset.export];
     if (donnees) copier(bouton, versTexteTabule(donnees));
@@ -272,6 +287,9 @@ const modeleBesoin = document.getElementById('modele-besoin');
 const boutonAjouter = document.getElementById('btn-ajouter');
 const resultatVlsm = document.getElementById('result-vlsm');
 effacerErreurEnTapant(champReseau);
+
+// Dernier plan calculé avec succès : c'est lui que « Envoyer vers le générateur Cisco » transmet.
+let dernierPlan = null;
 
 // Compteur pour donner des id uniques aux champs (« besoin-3-nom »), même après des suppressions.
 let compteurBesoins = 0;
@@ -505,6 +523,7 @@ formVlsm.addEventListener('submit', (event) => {
   document.getElementById('vlsm-resume').textContent = `Réseau ${plan.network}`;
   afficherBarre(plan, tailleReseau);
 
+  dernierPlan = plan;
   resultatVlsm.hidden = false;
   annoncer(`Plan calculé : ${plan.subnets.length} sous-réseaux, ${nombre(libres)} adresses libres.`);
 });
@@ -591,3 +610,302 @@ document.getElementById('exemple-vlsm').addEventListener('click', () => {
   remplacerBesoins(EXEMPLE_PLAN.besoins);
   formVlsm.requestSubmit();
 });
+
+/* ==================== Onglet 3 : générateur Cisco ==================== */
+// Chemin d'une donnée : plan VLSM → propositionsPourPlan() (valeurs de départ des champs)
+// → champs modifiables → entrée de genererConfigurations() → deux textes de configuration.
+// Comme pour le VLSM, ce fichier ne vérifie que la forme des champs (vide ? nombre ?) pour placer
+// les messages ; les vraies règles sont dans cisco.js, qui revérifie tout.
+
+const ongletVlsm = document.getElementById('tab-vlsm');
+const ongletCisco = document.getElementById('tab-cisco');
+const zoneVide = document.getElementById('cisco-vide');
+const formCisco = document.getElementById('form-cisco');
+const listeVlans = document.getElementById('cisco-vlans');
+const modeleVlan = document.getElementById('modele-vlan');
+const resultatCisco = document.getElementById('result-cisco');
+const erreurCisco = document.getElementById('cisco-erreur');
+
+// Plan affiché dans le générateur (le dernier envoyé depuis l'onglet VLSM).
+let planCisco = null;
+// Configurations affichées, pour Copier et Télécharger : { switch: { texte, fichier }, routeur: { … } }.
+let configsCisco = null;
+
+// Champs des réglages, rangés par le chemin de leur donnée dans l'entrée de genererConfigurations().
+// C'est le même chemin que erreur.champ quand cisco.js refuse une valeur : on retrouve ainsi le champ fautif.
+const champsReglages = Object.fromEntries(
+  Object.entries({
+    'switch.hostname': 'cisco-hostname-switch',
+    'routeur.hostname': 'cisco-hostname-routeur',
+    'switch.trunk': 'cisco-trunk',
+    domaine: 'cisco-domaine',
+    'vlanNatif.id': 'cisco-natif-id',
+    'vlanNatif.nom': 'cisco-natif-nom',
+    'management.id': 'cisco-mgmt-id',
+    'management.nom': 'cisco-mgmt-nom',
+    'management.reseau': 'cisco-mgmt-reseau',
+    'portSecurity.maximum': 'cisco-ps-max',
+    'portSecurity.violation': 'cisco-ps-violation',
+    'portSecurity.sticky': 'cisco-ps-sticky',
+    dns: 'cisco-dns',
+    banniere: 'cisco-banniere',
+  }).map(([chemin, id]) => [chemin, document.getElementById(id)]),
+);
+
+// Valeurs de départ des réglages : celles qui ont une valeur par défaut dans cisco.js la reprennent (DEFAUTS).
+const REGLAGES_DEPART = {
+  'switch.hostname': 'SW-SIEGE',
+  'routeur.hostname': 'R-SIEGE',
+  'switch.trunk': DEFAUTS.trunk,
+  domaine: DEFAUTS.domaine,
+  'vlanNatif.id': String(DEFAUTS.vlanNatif.id),
+  'vlanNatif.nom': DEFAUTS.vlanNatif.nom,
+  'management.nom': DEFAUTS.nomManagement,
+  'portSecurity.maximum': String(DEFAUTS.portSecurity.maximum),
+  'portSecurity.violation': DEFAUTS.portSecurity.violation,
+  dns: '1.1.1.1',
+  banniere: DEFAUTS.banniere,
+};
+for (const [chemin, valeur] of Object.entries(REGLAGES_DEPART)) champsReglages[chemin].value = valeur;
+champsReglages['portSecurity.sticky'].checked = DEFAUTS.portSecurity.sticky;
+for (const champ of Object.values(champsReglages)) effacerErreurEnTapant(champ);
+
+// Relie un champ à son <label> (for = id) et à sa zone d'erreur (aria-describedby), comme dans le VLSM.
+function relier(champ, id, label, zoneErreur) {
+  champ.id = id;
+  label.htmlFor = id;
+  zoneErreur.id = `${id}-error`;
+  champ.setAttribute('aria-describedby', `${id}-error`);
+  effacerErreurEnTapant(champ);
+}
+
+// Crée la ligne d'un sous-réseau du plan : titre, case « Créer un VLAN », numéro, nom et ports.
+function creerLigneVlan(sousReseau, proposition, i) {
+  const ligne = modeleVlan.content.firstElementChild.cloneNode(true);
+  // Le nom du sous-réseau a été saisi dans l'onglet VLSM : textContent, jamais innerHTML.
+  ligne.querySelector('.js-titre').textContent = sousReseau.name;
+  ligne.querySelector('.js-info').textContent = `${sousReseau.cidr} · passerelle ${sousReseau.gateway}`;
+  // Pour les lecteurs d'écran : « Numéro pour Serveurs » plutôt que trois « Numéro » identiques.
+  for (const span of ligne.querySelectorAll('.js-pour')) span.textContent = ` pour ${sousReseau.name}`;
+
+  const caseCreer = ligne.querySelector('.js-creer');
+  relier(caseCreer, `cisco-vlan-${i}-creer`, ligne.querySelector('.option label'), ligne.querySelector('.vlan__tete .field-error'));
+
+  const champs = [
+    [ligne.querySelector('.js-vlan-id'), 'id', String(proposition.id)],
+    [ligne.querySelector('.js-vlan-nom'), 'nom', proposition.nom],
+    [ligne.querySelector('.js-vlan-ports'), 'ports', proposition.ports],
+  ];
+  for (const [champ, suffixe, valeur] of champs) {
+    const bloc = champ.closest('.field');
+    relier(champ, `cisco-vlan-${i}-${suffixe}`, bloc.querySelector('label'), bloc.querySelector('.field-error'));
+    champ.value = valeur;
+  }
+
+  // Case décochée : les champs de la ligne sont désactivés (et ignorés à la génération).
+  function appliquerCase() {
+    ligne.classList.toggle('is-off', !caseCreer.checked);
+    for (const [champ] of champs) champ.disabled = !caseCreer.checked;
+  }
+  caseCreer.checked = proposition.creer;
+  appliquerCase();
+  caseCreer.addEventListener('change', () => {
+    appliquerCase();
+    // Un champ désactivé n'est plus vérifié : son ancienne erreur n'a plus de sens.
+    // (Ici la ligne est dans la page : effacerErreur() trouve sa zone d'erreur par son id.)
+    if (!caseCreer.checked) for (const [champ] of champs) effacerErreur(champ);
+  });
+  return ligne;
+}
+
+// Remplit le générateur avec un plan VLSM. Les réglages déjà saisis (hostnames, DNS…) sont gardés ;
+// les lignes de VLAN et le management, qui dépendent du plan, sont reproposés.
+function remplirGenerateur(plan) {
+  planCisco = plan;
+  const propositions = propositionsPourPlan(plan);
+  listeVlans.replaceChildren(...plan.subnets.map((s, i) => creerLigneVlan(s, propositions.vlans[i], i)));
+  champsReglages['management.id'].value = String(propositions.management.id);
+  champsReglages['management.reseau'].value = propositions.management.reseau;
+  for (const champ of Object.values(champsReglages)) effacerErreur(champ);
+  erreurCisco.textContent = '';
+
+  const n = plan.subnets.length;
+  document.getElementById('cisco-plan').textContent = `Plan ${plan.network} · ${n} sous-réseau${n > 1 ? 'x' : ''}`;
+  zoneVide.hidden = true;
+  formCisco.hidden = false;
+  resultatCisco.hidden = true;
+}
+
+document.getElementById('btn-envoyer-cisco').addEventListener('click', () => {
+  if (!dernierPlan) return;
+  remplirGenerateur(dernierPlan);
+  activerOnglet(ongletCisco, true);
+  annoncer(`Générateur Cisco ouvert : ${dernierPlan.subnets.length} sous-réseaux préremplis.`);
+});
+
+document.getElementById('btn-aller-vlsm').addEventListener('click', () => activerOnglet(ongletVlsm, true));
+
+/* ----- Lecture des champs ----- */
+
+// Lit un texte, sans les espaces autour. Vide : erreur sous le champ.
+function lireTexte(champ, champsEnErreur) {
+  const texte = champ.value.trim();
+  if (texte === '') {
+    afficherErreur(champ, 'Ce champ est obligatoire.');
+    champsEnErreur.push(champ);
+  }
+  return texte;
+}
+
+// Lit un nombre entier (chiffres uniquement). Sinon : erreur sous le champ, et null.
+// Les limites (2 à 4094, 1 à 64…) sont vérifiées par cisco.js.
+function lireEntier(champ, exemple, champsEnErreur) {
+  const texte = champ.value.trim();
+  if (/^\d+$/.test(texte)) return Number(texte);
+  afficherErreur(champ, texte === '' ? 'Ce champ est obligatoire.' : `Nombre entier attendu (ex. ${exemple}).`);
+  champsEnErreur.push(champ);
+  return null;
+}
+
+// Retrouve le champ de la page qui correspond à erreur.champ (ex. « vlans.1.ports »).
+// lignesCochees : les lignes envoyées à cisco.js, dans l'ordre (« vlans.1 » = la 2e ligne cochée).
+function trouverChamp(chemin, lignesCochees) {
+  if (Object.hasOwn(champsReglages, chemin)) return champsReglages[chemin];
+  const [debut, numero, propriete] = chemin.split('.');
+  if (debut !== 'vlans') return null;
+  // « vlans » seul (aucun VLAN, trop de VLAN) : la première ligne cochée.
+  const ligne = lignesCochees[Number(numero)] ?? lignesCochees[0];
+  if (!ligne) return null;
+  const SELECTEURS = { id: '.js-vlan-id', nom: '.js-vlan-nom', ports: '.js-vlan-ports' };
+  // Sous-réseau ou passerelle (repris du plan, pas modifiables ici) : sous la case de la ligne.
+  return ligne.querySelector(SELECTEURS[propriete] ?? '.js-creer');
+}
+
+/* ----- Génération ----- */
+
+formCisco.addEventListener('submit', (event) => {
+  event.preventDefault();
+
+  // On repart de zéro : plus aucune erreur affichée.
+  for (const champ of formCisco.querySelectorAll('.input, .case')) effacerErreur(champ);
+  erreurCisco.textContent = '';
+  const champsEnErreur = [];
+
+  // 1. Les lignes de VLAN : un choix par sous-réseau, null si la case est décochée (dans l'ordre de la page).
+  const lignes = [...listeVlans.children];
+  const lignesCochees = lignes.filter((ligne) => ligne.querySelector('.js-creer').checked);
+  const premiereCase = lignes[0].querySelector('.js-creer');
+  if (lignesCochees.length === 0) {
+    afficherErreur(premiereCase, 'Coche au moins un sous-réseau pour créer un VLAN.');
+    champsEnErreur.push(premiereCase);
+  } else if (lignesCochees.length > VLANS_MAX) {
+    afficherErreur(
+      premiereCase,
+      `${VLANS_MAX} VLAN au maximum : chacun a besoin d'un port access et le trunk en prend un. ` +
+        `Décoche ${lignesCochees.length - VLANS_MAX} sous-réseau(x).`,
+    );
+    champsEnErreur.push(premiereCase);
+  }
+  const choix = [];
+  const noms = [];
+  for (const ligne of lignes) {
+    if (!ligne.querySelector('.js-creer').checked) {
+      choix.push(null);
+      continue;
+    }
+    const id = lireEntier(ligne.querySelector('.js-vlan-id'), '10', champsEnErreur);
+    noms.push(lireTexte(ligne.querySelector('.js-vlan-nom'), champsEnErreur));
+    choix.push({ id, ports: lireTexte(ligne.querySelector('.js-vlan-ports'), champsEnErreur) });
+  }
+
+  // 2. Les réglages, lus dans l'ordre de la page (le focus ira sur la première erreur).
+  const c = champsReglages;
+  const hostnameSwitch = lireTexte(c['switch.hostname'], champsEnErreur);
+  const hostnameRouteur = lireTexte(c['routeur.hostname'], champsEnErreur);
+  const trunk = lireTexte(c['switch.trunk'], champsEnErreur);
+  const domaine = lireTexte(c.domaine, champsEnErreur);
+  const vlanNatif = { id: lireEntier(c['vlanNatif.id'], '99', champsEnErreur), nom: lireTexte(c['vlanNatif.nom'], champsEnErreur) };
+  const management = {
+    id: lireEntier(c['management.id'], '50', champsEnErreur),
+    nom: lireTexte(c['management.nom'], champsEnErreur),
+    reseau: lireTexte(c['management.reseau'], champsEnErreur),
+  };
+  const portSecurity = {
+    maximum: lireEntier(c['portSecurity.maximum'], '2', champsEnErreur),
+    violation: c['portSecurity.violation'].value,
+    sticky: c['portSecurity.sticky'].checked,
+  };
+  const dns = lireTexte(c.dns, champsEnErreur);
+  const banniere = lireTexte(c.banniere, champsEnErreur);
+
+  if (champsEnErreur.length > 0) {
+    resultatCisco.hidden = true;
+    // Le focus va sur le premier champ en erreur : le lecteur d'écran lit le champ et son erreur.
+    champsEnErreur[0].focus();
+    return;
+  }
+
+  // 3. Du plan aux VLAN, puis génération. cisco.js revérifie TOUT (listes blanches, doublons, ports…).
+  let configs;
+  try {
+    // depuisPlanVlsm() reprend le sous-réseau et la passerelle du plan ; le nom vient du champ, modifiable.
+    const vlans = depuisPlanVlsm(planCisco, choix).map((vlan, i) => ({ ...vlan, nom: noms[i] }));
+    configs = genererConfigurations({
+      switch: { hostname: hostnameSwitch, trunk },
+      routeur: { hostname: hostnameRouteur },
+      domaine,
+      vlans,
+      vlanNatif,
+      management,
+      portSecurity,
+      dns,
+      banniere,
+    });
+  } catch (erreur) {
+    resultatCisco.hidden = true;
+    // erreur.champ (ex. « vlans.1.ports ») désigne la donnée refusée : on place le message sous son champ.
+    const champ = erreur instanceof ErreurSaisie ? trouverChamp(erreur.champ, lignesCochees) : null;
+    if (champ) {
+      // detail : le message sans son sujet, que l'étiquette du champ donne déjà.
+      afficherErreur(champ, majuscule(erreur.detail));
+      champ.focus();
+    } else {
+      // Erreur qui ne correspond à aucun champ affiché : message complet sous le bouton.
+      erreurCisco.textContent = erreur.message;
+      erreurCisco.focus();
+    }
+    return;
+  }
+
+  // 4. Affichage. Les hostnames ont passé la liste blanche (lettres, chiffres, tirets) : noms de fichiers sûrs.
+  configsCisco = {
+    switch: { texte: configs.switch, fichier: `config-${hostnameSwitch}.txt` },
+    routeur: { texte: configs.routeur, fichier: `config-${hostnameRouteur}.txt` },
+  };
+  document.getElementById('cisco-switch').textContent = configs.switch;
+  document.getElementById('cisco-routeur').textContent = configs.routeur;
+  document.getElementById('cisco-switch-titre').textContent = `Switch ${hostnameSwitch}`;
+  document.getElementById('cisco-routeur-titre').textContent = `Routeur ${hostnameRouteur}`;
+  document.getElementById('cisco-resume').textContent =
+    `${lignesCochees.length} VLAN · management ${management.reseau} · plan ${planCisco.network}`;
+  resultatCisco.hidden = false;
+  annoncer(`Configurations générées pour ${hostnameSwitch} et ${hostnameRouteur}. À relire et à tester avant tout usage réel.`);
+});
+
+// Copier : le texte exact de la configuration, tel qu'il est affiché.
+for (const bouton of document.querySelectorAll('.btn-copy[data-config]')) {
+  bouton.addEventListener('click', () => {
+    const config = configsCisco?.[bouton.dataset.config];
+    if (config) copier(bouton, config.texte);
+  });
+}
+
+// Télécharger en .txt : fichier texte brut, fabriqué dans le navigateur.
+for (const bouton of document.querySelectorAll('.btn-txt')) {
+  bouton.addEventListener('click', () => {
+    const config = configsCisco?.[bouton.dataset.config];
+    if (!config) return;
+    telecharger(config.fichier, new Blob([config.texte], { type: 'text/plain;charset=utf-8' }));
+    annoncer(`Téléchargement de ${config.fichier}`);
+  });
+}

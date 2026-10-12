@@ -121,6 +121,12 @@ a:hover {
   outline-offset: 3px;
 }
 
+/* L'attribut hidden cache toujours l'élément. Sans cette règle, un « display: grid » (ex. .results, .form)
+   l'emporterait sur le display: none par défaut du navigateur, et des blocs vides resteraient visibles. */
+[hidden] {
+  display: none !important;
+}
+
 /* Masqué à l'écran mais lu par les lecteurs d'écran */
 .sr-only {
   position: absolute;
@@ -318,18 +324,19 @@ a:hover {
   border: 1px solid var(--line);
 }
 
+/* Mobile : 3 onglets doivent tenir sur la largeur, leur texte peut passer sur 2 lignes */
 .tab {
   flex: 1;
   min-height: 44px;
-  padding: .6rem 1.15rem;
+  padding: .45rem .6rem;
   border: 0;
   border-radius: 999px;
   background: transparent;
   font: inherit;
-  font-size: .92rem;
+  font-size: .86rem;
   font-weight: 600;
+  line-height: 1.2;
   color: var(--text-dim);
-  white-space: nowrap;
   cursor: pointer;
   transition: background-color .3s var(--ease), color .3s var(--ease);
 }
@@ -560,6 +567,195 @@ legend {
   grid-area: suppr;
   /* Aligné sur le champ : on saute la hauteur du libellé (1 ligne) + l'espace */
   margin-top: calc(.92rem * 1.55 + .4rem + 2px);
+}
+
+/* --- Générateur Cisco --- */
+
+/* Message affiché tant qu'aucun plan VLSM n'a été envoyé */
+.vide {
+  display: grid;
+  justify-items: start;
+  gap: 1rem;
+  padding: 1.25rem;
+  background: rgba(255, 253, 246, .7);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-sm);
+}
+
+/* Bouton « Envoyer vers le générateur Cisco » sous le plan VLSM */
+.suite {
+  display: grid;
+  justify-items: start;
+  gap: .5rem;
+}
+
+/* Groupe de réglages (fieldset sans cadre, comme la liste des besoins) */
+.groupe {
+  display: grid;
+  gap: .75rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.groupe legend {
+  padding: 0;
+  margin-bottom: .4rem;
+  font-family: var(--display);
+  font-size: 1.1rem;
+}
+
+/* Champs côte à côte : 1 colonne sur mobile, 2 à partir de 600px (voir Responsive) */
+.grille {
+  display: grid;
+  gap: 1rem;
+}
+
+/* Case à cocher + son libellé, cliquables sur au moins 44px de haut */
+.option {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  min-height: 44px;
+}
+
+.option label {
+  cursor: pointer;
+}
+
+.case {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0;
+  flex: none;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* Une ligne par sous-réseau du plan */
+.vlans {
+  display: grid;
+  gap: .75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.vlan {
+  display: grid;
+  gap: .75rem;
+  padding: .9rem;
+  background: rgba(255, 253, 246, .7);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-sm);
+}
+
+.vlan__titre {
+  font-family: var(--display);
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.vlan__info {
+  font-size: .82rem;
+  color: var(--text-dim);
+}
+
+/* Mobile : numéro | nom, puis les ports sur toute la largeur */
+.vlan__champs {
+  display: grid;
+  grid-template-columns: minmax(5rem, 7rem) minmax(0, 1fr);
+  grid-template-areas:
+    'id    nom'
+    'ports ports';
+  gap: .75rem;
+}
+
+.vlan__id { grid-area: id; }
+.vlan__nom { grid-area: nom; }
+.vlan__ports { grid-area: ports; }
+
+/* Sous-réseau décoché (classe posée par app.js) : ses champs sont désactivés et estompés */
+.vlan.is-off .vlan__champs {
+  opacity: .5;
+}
+
+.input:disabled {
+  cursor: not-allowed;
+  background: transparent;
+}
+
+/* Erreur qui ne concerne aucun champ (sous le bouton Générer) */
+.form-error {
+  margin-top: .75rem;
+}
+
+/* Avertissement à relire avant usage : bien visible, mais sans le rouge des erreurs */
+.avertissement {
+  display: flex;
+  align-items: flex-start;
+  gap: .75rem;
+  padding: 1rem 1.15rem;
+  color: var(--text);
+  background: #fdecc0;
+  border: 2px solid #b7791f;
+  border-radius: var(--r-sm);
+}
+
+.avertissement p {
+  color: var(--text);
+}
+
+.avertissement__icone {
+  width: 1.5rem;
+  height: 1.5rem;
+  margin-top: .1rem;
+  color: #8a5a12;
+}
+
+.avertissement code {
+  font-family: var(--mono);
+  font-size: .9em;
+  white-space: nowrap;
+}
+
+/* Bloc d'une configuration : titre + boutons, puis le texte */
+.config {
+  display: grid;
+  gap: .9rem;
+}
+
+.config__tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem 1rem;
+}
+
+.config__tete h3 {
+  margin: 0;
+}
+
+/* Texte de la configuration : les longues lignes passent à la ligne (pas de défilement horizontal
+   sur mobile) ; au-delà de 32rem de haut, la zone défile. Copier et Télécharger prennent le texte exact. */
+.config__texte {
+  max-height: 32rem;
+  margin: 0;
+  padding: 1rem;
+  overflow: auto;
+  font-family: var(--mono);
+  font-size: .8rem;
+  line-height: 1.5;
+  color: var(--text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
 }
 
 /* --- Résultats --- */
@@ -935,6 +1131,32 @@ legend {
   }
 }
 
+/* À partir de 600px : réglages sur 2 colonnes, ligne de VLAN = numéro | nom | ports */
+@media (min-width: 600px) {
+  .grille {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* Champ qui prend toute la largeur de la grille (sous-réseau de management, bannière…) */
+  .grille__large {
+    grid-column: 1 / -1;
+  }
+
+  .vlan__champs {
+    grid-template-columns: minmax(5rem, 7rem) minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas: 'id nom ports';
+  }
+}
+
+/* À partir de 640px : les intitulés des onglets tiennent sur une ligne */
+@media (min-width: 640px) {
+  .tab {
+    padding: .6rem 1.15rem;
+    font-size: .92rem;
+    white-space: nowrap;
+  }
+}
+
 /* À partir de 860px : un peu plus d'air */
 @media (min-width: 860px) {
   .besoins__liste {
@@ -970,8 +1192,25 @@ legend {
   .exemples,
   .form,
   .actions,
+  .suite,
+  .vide,
   .noscript {
     display: none !important;
+  }
+
+  /* Configuration imprimée en entier, sans zone défilante */
+  .config__texte {
+    max-height: none;
+    overflow: visible;
+    font-size: 8pt;
+    background: none;
+    border: 0;
+    padding: 0;
+  }
+
+  .avertissement {
+    background: none;
+    border: 1.5px solid #000;
   }
 
   .wrap {
