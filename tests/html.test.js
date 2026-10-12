@@ -2,7 +2,7 @@
 // caractères invisibles. On lit les fichiers comme du texte : pas besoin de navigateur.
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { LONGUEUR_MAX_ADRESSE } from '../js/ip.js';
 import { NOM_LONGUEUR_MAX, HOTES_MAX } from '../js/vlsm.js';
 import {
@@ -84,6 +84,22 @@ describe('générateur Cisco : page', () => {
     const cibles = [...html.matchAll(/class="[^"]*\b(btn-copy|btn-txt)\b[^"]*" type="button" data-config="(\w+)"/g)];
     assert.deepEqual(cibles.map((c) => `${c[1]}:${c[2]}`), ['btn-copy:switch', 'btn-txt:switch', 'btn-copy:routeur', 'btn-txt:routeur']);
   });
+});
+
+test('README.md et SECURITY.md : chaque lien ou image relatif pointe vers un fichier existant', () => {
+  let verifies = 0;
+  for (const document of ['README.md', 'SECURITY.md']) {
+    // « ](cible) » : la cible d'un lien ou d'une image Markdown. On ignore les adresses web et les ancres (#…).
+    const cibles = [...lire(document).matchAll(/\]\(([^)\s]+)\)/g)]
+      .map((m) => m[1])
+      .filter((cible) => !/^(https?:|mailto:|#)/.test(cible));
+    for (const cible of cibles) {
+      assert.ok(existsSync(new URL(`../${cible.split('#')[0]}`, import.meta.url)), `${document} : ${cible} introuvable`);
+      verifies++;
+    }
+  }
+  // Garde-fou : si l'expression ne trouvait plus aucun lien, le test passerait sans rien vérifier.
+  assert.ok(verifies >= 5, `seulement ${verifies} liens relatifs vérifiés`);
 });
 
 test('style.css : l’attribut hidden cache toujours l’élément, même avec un display: grid', () => {

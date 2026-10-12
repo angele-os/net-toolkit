@@ -7,7 +7,7 @@
 
 ## Français
 
-Calculateur IPv4 et VLSM qui fonctionne entièrement dans le navigateur : analyser une adresse, puis découper un réseau en sous-réseaux dimensionnés selon chaque besoin.
+Calculateur IPv4 et VLSM qui fonctionne entièrement dans le navigateur : analyser une adresse, découper un réseau en sous-réseaux dimensionnés selon chaque besoin, puis générer la configuration Cisco du switch et du routeur correspondants.
 
 **Démo : <https://reseau.ange-bonkoski.fr>**
 
@@ -35,6 +35,57 @@ HTML, CSS et JavaScript sans framework, sans dépendance npm.
 - Messages d'erreur explicites : réseau de départ mal aligné (avec l'adresse correcte suggérée), plan trop grand (avec le nombre d'adresses manquantes).
 
 ![Capture d'écran : plan VLSM de 192.168.10.0/24 pour quatre besoins, avec barre de répartition, tableau des sous-réseaux et blocs libres](docs/capture-vlsm.png)
+
+#### Générateur Cisco
+
+À partir du plan VLSM (bouton « Envoyer vers le générateur Cisco »), l'outil produit deux configurations IOS commentées : celle du switch et celle du routeur.
+
+**Modèles ciblés**
+
+- Switch **Cisco Catalyst 2960-24TT** (Fa0/1 à Fa0/24, Gi0/1 et Gi0/2).
+- Routeur **Cisco ISR 4321**, relié au switch par un trunk sur G0/0/0. Le routage entre VLAN passe par des sous-interfaces (*router-on-a-stick*).
+- Syntaxe IOS 15. Les commandes sont choisies pour être acceptées par Cisco Packet Tracer ; les variantes qu'il ne connaît pas sont signalées en commentaire.
+
+**Contenu des configurations**
+
+- **Switch** :
+  - durcissement de base : SSH v2 seul sur les lignes VTY, `exec-timeout`, `service password-encryption`, bannière ;
+  - VLAN ;
+  - ports access avec Port Security, PortFast et BPDU Guard ;
+  - trunk 802.1Q : `nonegotiate`, VLAN natif dédié, liste des VLAN autorisés ;
+  - ports inutilisés coupés et rangés dans un VLAN parking ;
+  - Rapid PVST+ ;
+  - interface de management et passerelle par défaut.
+- **Routeur** :
+  - même durcissement ;
+  - une sous-interface 802.1Q par VLAN, et le VLAN natif sans adresse ;
+  - DHCP : passerelles exclues, puis un pool par VLAN avec passerelle et serveur DNS.
+
+**Dans l'interface**
+
+- Une ligne par sous-réseau :
+  - case « Créer un VLAN » (les /30, liens point à point, sont décochés au départ) ;
+  - numéro (10, 20, 30… par défaut) ;
+  - nom proposé sans accent ;
+  - plage de ports access.
+- Les réglages : hostnames, port trunk, VLAN natif, VLAN de management (proposé dans le plus grand bloc libre du plan), Port Security, DNS et bannière.
+- Chaque erreur s'affiche sous le champ concerné, avec un message clair.
+- Chaque configuration se copie ou se télécharge en `.txt`.
+
+**Sécurité** : chaque champ texte est vérifié par liste blanche. On ne peut donc pas injecter de commande dans la configuration, par exemple avec un retour à la ligne dans un nom de VLAN. **Aucun mot de passe n'est demandé** : chaque secret est un marqueur `<A_REMPLACER>` à remplir à la main. Les détails sont dans [SECURITY.md](SECURITY.md).
+
+> **Configuration à relire et à tester (par exemple dans Packet Tracer) avant tout usage sur un équipement réel.** Collée sans remplacer les marqueurs, elle fonctionne, mais avec un mot de passe public.
+
+**Test dans Packet Tracer** avec le plan d'exemple (Bureautique, Serveurs, Wi-Fi invités, et un VLAN de management en 192.168.10.240/28) :
+- trunk actif avec le VLAN natif 99 ;
+- un bail DHCP dans chaque VLAN ;
+- ping d'un VLAN à l'autre à travers le routeur.
+
+![Capture d'écran : ping depuis un PC de Packet Tracer vers 192.168.10.130 (VLAN Serveurs), 3 réponses sur 4 avec un TTL de 127](docs/cisco-ping.png)
+
+Le premier paquet perdu correspond à la résolution ARP. Le TTL de 127 (128 − 1) montre que le paquet a traversé le routeur.
+
+**Maquette Packet Tracer** : [docs/packet-tracer/net-toolkit-siege.pkt](docs/packet-tracer/net-toolkit-siege.pkt). Elle contient le switch 2960-24TT, le routeur ISR 4321 et les PC des VLAN 10, 20 et 30, configurés avec les fichiers générés. Elle s'ouvre avec Cisco Packet Tracer 8.2 ou une version plus récente.
 
 #### Export et utilisation
 
@@ -80,15 +131,23 @@ npm test            # lance tous les tests
 npm run coverage    # idem, avec le taux de couverture du code
 ```
 
-Les tests couvrent les calculs (`js/ip.js`, `js/vlsm.js`), l'export (`js/export.js`) et des règles de sécurité vérifiées automatiquement sur le HTML (CSP, absence de script en ligne) et sur les workflows (actions épinglées par SHA). Ils s'exécutent à chaque push et à chaque pull request ; le site n'est publié que s'ils réussissent.
+Les tests couvrent :
+- les calculs (`js/ip.js`, `js/vlsm.js`) ;
+- le générateur Cisco (`js/cisco.js`) : une configuration de référence comparée à des fichiers attendus dans `tests/fixtures/`, chaque cas d'erreur et 24 tentatives d'injection de commandes ;
+- l'export (`js/export.js`) ;
+- des règles de sécurité vérifiées automatiquement sur le HTML (CSP, absence de script en ligne, aucun `innerHTML`, `maxlength` égaux aux limites du code) et sur les workflows (actions épinglées par SHA). Ils s'exécutent à chaque push et à chaque pull request ; le site n'est publié que s'ils réussissent.
 
 ### Sécurité
 
-net-toolkit est une page statique : pas de serveur, pas de base de données, pas de compte, et les saisies ne quittent jamais le navigateur. Les protections mises en place (CSP stricte avec Trusted Types, insertion du texte sans interprétation HTML, protection des exports CSV, limites de saisie, aucune dépendance, publication par liste blanche) sont détaillées avec le modèle de menace dans [SECURITY.md](SECURITY.md). Pour signaler une faille, merci d'utiliser le [signalement privé de GitHub](https://github.com/angele-os/net-toolkit/security/advisories/new) plutôt qu'une issue publique.
+net-toolkit est une page statique : pas de serveur, pas de base de données, pas de compte, et les saisies ne quittent jamais le navigateur. Les protections mises en place (CSP stricte avec Trusted Types, insertion du texte sans interprétation HTML, protection des exports CSV, listes blanches contre l'injection de commandes dans la configuration Cisco, aucun mot de passe demandé, limites de saisie, aucune dépendance, publication par liste blanche) sont détaillées avec le modèle de menace dans [SECURITY.md](SECURITY.md). Pour signaler une faille, merci d'utiliser le [signalement privé de GitHub](https://github.com/angele-os/net-toolkit/security/advisories/new) plutôt qu'une issue publique.
 
 ### Feuille de route
 
-- **Prochaine étape : générateur de configurations Cisco.** À partir d'un plan d'adressage VLSM, produire les commandes de configuration Cisco IOS correspondantes.
+- **v1.1 (fait)** : générateur de configurations Cisco à partir du plan VLSM.
+- **v2** :
+  - **switch de niveau 3** (par exemple un Catalyst 3650) : routage entre VLAN par interfaces VLAN (SVI) et `ip routing`, à la place du *router-on-a-stick* ;
+  - **plusieurs switchs** : trunks entre switchs, choix du pont racine Spanning Tree, ports access répartis sur plusieurs équipements ;
+  - **IPv6** : plan d'adressage IPv6 et configuration double pile (IPv4 et IPv6).
 
 ### Licence
 
@@ -98,9 +157,9 @@ Code distribué sous licence MIT : voir [LICENSE](LICENSE). Les polices Inter et
 
 ## English
 
-IPv4 and VLSM calculator that runs entirely in the browser: analyse an address, then split a network into subnets sized for each requirement.
+IPv4 and VLSM calculator that runs entirely in the browser: analyse an address, split a network into subnets sized for each requirement, then generate the Cisco configuration of the matching switch and router.
 
-**Demo: <https://reseau.ange-bonkoski.fr>** (the interface is in French; see the screenshots of the [address analysis](docs/capture-ip.png) and the [VLSM plan](docs/capture-vlsm.png)).
+**Demo: <https://reseau.ange-bonkoski.fr>** (the interface is in French; see the screenshots of the [address analysis](docs/capture-ip.png), the [VLSM plan](docs/capture-vlsm.png) and the [Packet Tracer test](docs/cisco-ping.png)).
 
 Plain HTML, CSS and JavaScript: no framework, no npm dependencies.
 
@@ -122,6 +181,55 @@ Plain HTML, CSS and JavaScript: no framework, no npm dependencies.
 - Visual allocation bar of the starting network.
 - Remaining space split into reusable CIDR blocks.
 - Clear error messages: misaligned starting network (with the correct address suggested), plan too large (with the number of missing addresses).
+
+#### Cisco generator
+
+From the VLSM plan ("Envoyer vers le générateur Cisco" button), the tool produces two commented IOS configurations: one for the switch, one for the router.
+
+**Target models**
+
+- **Cisco Catalyst 2960-24TT** switch (Fa0/1 to Fa0/24, Gi0/1 and Gi0/2).
+- **Cisco ISR 4321** router, connected to the switch through a trunk on G0/0/0. Inter-VLAN routing uses subinterfaces (router-on-a-stick).
+- IOS 15 syntax. Commands are chosen to be accepted by Cisco Packet Tracer; variants it does not support are flagged in comments.
+
+**What the configurations contain**
+
+- **Switch**:
+  - baseline hardening: SSH v2 only on VTY lines, `exec-timeout`, `service password-encryption`, banner;
+  - VLANs;
+  - access ports with Port Security, PortFast and BPDU Guard;
+  - 802.1Q trunk: `nonegotiate`, dedicated native VLAN, allowed VLAN list;
+  - unused ports shut down and moved to a parking VLAN;
+  - Rapid PVST+;
+  - management interface and default gateway.
+- **Router**:
+  - the same hardening;
+  - one 802.1Q subinterface per VLAN, and the native VLAN without an address;
+  - DHCP: gateways excluded, then one pool per VLAN with gateway and DNS server.
+
+**In the interface**
+
+- One row per subnet:
+  - "Create a VLAN" checkbox (/30 point-to-point links start unchecked);
+  - VLAN ID (10, 20, 30… by default);
+  - suggested name without accents;
+  - access port range.
+- The settings: hostnames, trunk port, native VLAN, management VLAN (suggested in the largest free block of the plan), Port Security, DNS and banner.
+- Each error is shown under the field it concerns, with a clear message.
+- Each configuration can be copied or downloaded as `.txt`.
+
+**Security**: every text field is checked against an allow-list, so no command can be injected into the configuration (for example through a line break in a VLAN name). **No password is ever requested**: each secret is a `<A_REMPLACER>` placeholder to fill in by hand. Details in [SECURITY.md](SECURITY.md).
+
+> **Review and test the configuration (for example in Packet Tracer) before any use on real equipment.** If it is pasted without replacing the placeholders, it works, but with a public password.
+
+**Tested in Packet Tracer** with the sample plan (Office, Servers, Guest Wi-Fi, and a management VLAN in 192.168.10.240/28):
+- trunk up with native VLAN 99;
+- one DHCP lease in each VLAN;
+- ping from one VLAN to another through the router.
+
+The first lost packet is ARP resolution; the TTL of 127 (128 − 1) shows the packet went through the router.
+
+**Packet Tracer lab**: [docs/packet-tracer/net-toolkit-siege.pkt](docs/packet-tracer/net-toolkit-siege.pkt). It contains the 2960-24TT switch, the ISR 4321 router and the PCs of VLANs 10, 20 and 30, configured with the generated files. It opens in Cisco Packet Tracer 8.2 or later.
 
 #### Export and usability
 
@@ -167,15 +275,23 @@ npm test            # run all tests
 npm run coverage    # same, with code coverage
 ```
 
-The tests cover the calculations (`js/ip.js`, `js/vlsm.js`), the export (`js/export.js`) and security rules checked automatically against the HTML (CSP, no inline script) and the workflows (SHA-pinned actions). They run on every push and pull request; the site is only deployed when they pass.
+The tests cover:
+- the calculations (`js/ip.js`, `js/vlsm.js`);
+- the Cisco generator (`js/cisco.js`): a reference configuration compared with expected files in `tests/fixtures/`, every error case, and 24 command-injection attempts;
+- the export (`js/export.js`);
+- security rules checked automatically against the HTML (CSP, no inline script, no `innerHTML`, `maxlength` values matching the code limits) and the workflows (SHA-pinned actions). They run on every push and pull request; the site is only deployed when they pass.
 
 ### Security
 
-net-toolkit is a static page: no server, no database, no account, and input never leaves the browser. The safeguards (strict CSP with Trusted Types, text inserted without HTML interpretation, CSV export protection, input limits, zero dependencies, allow-listed deployment) are documented together with the threat model in [SECURITY.md](SECURITY.md). To report a vulnerability, please use [GitHub private vulnerability reporting](https://github.com/angele-os/net-toolkit/security/advisories/new) rather than a public issue.
+net-toolkit is a static page: no server, no database, no account, and input never leaves the browser. The safeguards (strict CSP with Trusted Types, text inserted without HTML interpretation, CSV export protection, allow-lists against command injection into the Cisco configuration, no password requested, input limits, zero dependencies, allow-listed deployment) are documented together with the threat model in [SECURITY.md](SECURITY.md). To report a vulnerability, please use [GitHub private vulnerability reporting](https://github.com/angele-os/net-toolkit/security/advisories/new) rather than a public issue.
 
 ### Roadmap
 
-- **Next step: Cisco configuration generator.** Produce the matching Cisco IOS configuration commands from a VLSM addressing plan.
+- **v1.1 (done)**: Cisco configuration generator from the VLSM plan.
+- **v2**:
+  - **Layer 3 switch** (for example a Catalyst 3650): inter-VLAN routing through VLAN interfaces (SVIs) and `ip routing`, instead of router-on-a-stick;
+  - **multiple switches**: trunks between switches, Spanning Tree root bridge selection, access ports spread over several devices;
+  - **IPv6**: IPv6 addressing plan and dual-stack (IPv4 and IPv6) configuration.
 
 ### License
 

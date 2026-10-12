@@ -1,1 +1,3 @@
 * text=auto eol=lf
+# Fichiers Packet Tracer : binaires, jamais de conversion de fin de ligne (elle les corromprait).
+*.pkt binary
