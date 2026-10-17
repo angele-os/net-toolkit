@@ -151,7 +151,7 @@ net-toolkit est une page statique : pas de serveur, pas de base de données, pas
 
 ### Licence
 
-Code distribué sous licence MIT : voir [LICENSE](LICENSE). Les polices Inter et Fraunces, auto-hébergées dans `fonts/`, sont distribuées sous SIL Open Font License 1.1 : voir [fonts/README.md](fonts/README.md).
+Code distribué sous licence MIT : voir [LICENSE](LICENSE). La police Instrument Sans, auto-hébergée dans `fonts/`, est distribuée sous SIL Open Font License 1.1 : voir [fonts/README.md](fonts/README.md).
 
 ---
 
@@ -295,4 +295,4 @@ net-toolkit is a static page: no server, no database, no account, and input neve
 
 ### License
 
-Code released under the MIT License: see [LICENSE](LICENSE). The Inter and Fraunces fonts, self-hosted in `fonts/`, are released under the SIL Open Font License 1.1: see [fonts/README.md](fonts/README.md).
+Code released under the MIT License: see [LICENSE](LICENSE). The Instrument Sans font, self-hosted in `fonts/`, is released under the SIL Open Font License 1.1: see [fonts/README.md](fonts/README.md).

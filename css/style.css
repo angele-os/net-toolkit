@@ -1,55 +1,50 @@
 /* net-toolkit — styles
-   Identité visuelle reprise du portfolio (ange-bonkoski.fr), version sobre.
+   Identité visuelle reprise du portfolio (ange-bonkoski.fr) : « ardoise et brume », fond gris brume,
+   encre presque noire, un seul accent bleu pétrole, panneaux en verre.
    Organisation : polices → variables → base → mise en page → composants → responsive → accessibilité. */
 
-/* ========== 1. Polices auto-hébergées (licence SIL OFL 1.1, voir fonts/README.md) ========== */
+/* ========== 1. Polices auto-hébergées (Instrument Sans, licence SIL OFL 1.1, voir fonts/README.md) ========== */
 @font-face {
-  font-family: 'Inter';
-  src: url('../fonts/inter-latin-wght-normal.woff2') format('woff2');
-  font-weight: 100 900;   /* police variable : toutes les graisses dans un seul fichier */
+  font-family: 'Instrument Sans';
+  src: url('../fonts/instrument-sans-latin-standard-normal.woff2') format('woff2');
+  font-weight: 400 700;      /* police variable : graisses 400 à 700 dans un seul fichier */
+  font-stretch: 75% 100%;    /* et largeurs 75 % à 100 % : les titres sont légèrement condensés */
   font-style: normal;
-  font-display: swap;     /* affiche le texte tout de suite avec une police de secours */
-}
-
-@font-face {
-  font-family: 'Fraunces';
-  src: url('../fonts/fraunces-latin-opsz-normal.woff2') format('woff2');
-  font-weight: 100 900;
-  font-style: normal;
-  font-display: swap;
+  font-display: swap;        /* affiche le texte tout de suite avec une police de secours */
 }
 
 /* ========== 2. Variables : toutes les couleurs et mesures de l'identité visuelle ========== */
 :root {
-  --white: #fffdf6;
-  --bg: #FFF8DF;
-  --bg-deep: #F7EBBE;
+  /* Couleurs du portfolio (contrastes mesurés sur le fond --bg) */
+  --white: #fff;
+  --bg: #EDF0F1;            /* brume */
+  --bg-deep: #E4E9EB;
 
-  --accent: #5A235F;
-  --accent-deep: #3E1841;
-  --accent-soft: rgba(90, 35, 95, .14);
-  --accent-glow: rgba(90, 35, 95, .28);
+  --accent: #1D5A66;        /* bleu pétrole : 6,8:1 (blanc sur pétrole : 7,8:1) */
+  --accent-deep: #143F48;
+  --accent-soft: rgba(29, 90, 102, .10);
+  --accent-glow: rgba(29, 90, 102, .28);
 
-  --text: #4C1F50;
-  --text-dim: #6E4A75;
-  --text-faint: #7E5C86;
+  --text: #14181D;          /* encre : 15,6:1 */
+  --text-dim: #46505A;      /* texte secondaire : 7,2:1 */
+  --text-faint: #59636D;    /* texte discret : 5,3:1 */
 
-  --line: rgba(90, 35, 95, .14);
-  --line-soft: rgba(90, 35, 95, .09);
-  --line-strong: rgba(90, 35, 95, .28);
+  --line: rgba(20, 24, 29, .12);
+  --line-soft: rgba(20, 24, 29, .08);
+  --line-strong: rgba(20, 24, 29, .2);
 
-  /* Rouge des erreurs (même que le badge « Nouveautés » du portfolio) */
-  --error: #c81e1e;
-  --error-bg: rgba(220, 38, 38, .08);
-  --error-line: rgba(220, 38, 38, .3);
+  /* Rouge des erreurs : couleur d'alerte, volontairement distincte de l'accent */
+  --error: #B42318;
+  --error-bg: rgba(180, 35, 24, .07);
+  --error-line: rgba(180, 35, 24, .3);
 
-  --r-lg: 32px;
-  --r-md: 22px;
-  --r-sm: 14px;
+  --r-lg: 26px;
+  --r-md: 18px;
+  --r-sm: 12px;
   --ease: cubic-bezier(.16, 1, .3, 1);
 
-  --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
-  --display: 'Fraunces', 'Iowan Old Style', Georgia, serif;
+  --sans: 'Instrument Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --display: var(--sans);   /* titres : même police, plus condensée (font-stretch) */
   --mono: ui-monospace, 'SF Mono', 'Cascadia Code', 'Menlo', 'Consolas', monospace;
 
   /* Marge latérale de la page */
@@ -76,13 +71,15 @@ body {
   font-family: var(--sans);
   line-height: 1.55;
   color: var(--text);
-  /* Fond crème + taches violettes très diffuses en haut de page (sans animation) */
+  /* Fond brume + halos très flous (pétrole, bleu, sable), comme le portfolio, sans animation */
   background-color: var(--bg);
   background-image:
-    radial-gradient(ellipse 70rem 34rem at 12% -8%, rgba(90, 35, 95, .14), transparent 62%),
-    radial-gradient(ellipse 56rem 30rem at 92% -6%, rgba(90, 35, 95, .08), transparent 60%),
-    radial-gradient(ellipse 44rem 24rem at 55% 2%, rgba(90, 35, 95, .1), transparent 70%);
+    radial-gradient(ellipse 60rem 40rem at 0% -10%, rgba(29, 90, 102, .22), transparent 62%),
+    radial-gradient(ellipse 46rem 34rem at 100% 0%, rgba(84, 112, 150, .16), transparent 60%),
+    radial-gradient(ellipse 52rem 36rem at 40% 75%, rgba(205, 190, 166, .30), transparent 65%),
+    radial-gradient(ellipse 40rem 30rem at 100% 95%, rgba(110, 170, 180, .20), transparent 60%);
   background-repeat: no-repeat;
+  background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -91,9 +88,10 @@ h2,
 h3 {
   margin: 0;
   font-family: var(--display);
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  line-height: 1.2;
+  font-weight: 650;
+  font-stretch: 82%;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
   color: var(--text);
 }
 
@@ -219,17 +217,17 @@ a:hover {
 .panel {
   margin-bottom: 4rem;
   padding: clamp(1.1rem, 3.5vw, 2.25rem);
-  background: rgba(255, 253, 246, .58);
-  border: 1px solid rgba(255, 253, 246, .85);
-  border-radius: var(--r-md);
-  -webkit-backdrop-filter: blur(28px) saturate(170%);
-  backdrop-filter: blur(28px) saturate(170%);
+  background: linear-gradient(180deg, rgba(255, 255, 255, .58), rgba(255, 255, 255, .34));
+  border: 1px solid rgba(255, 255, 255, .6);
+  border-radius: var(--r-lg);
+  -webkit-backdrop-filter: blur(14px) saturate(170%);
+  backdrop-filter: blur(14px) saturate(170%);
   box-shadow:
-    inset 0 1.5px 0 rgba(255, 255, 255, .95),
-    inset 0 -1px 0 rgba(90, 35, 95, .06),
-    0 0 0 1px rgba(90, 35, 95, .05),
-    0 8px 20px -10px var(--accent-glow),
-    0 34px 64px -30px rgba(90, 35, 95, .4);
+    inset 0 1px 0 rgba(255, 255, 255, .95),
+    inset 0 -1px 0 rgba(20, 24, 29, .04),
+    0 1px 1px rgba(20, 24, 29, .04),
+    0 14px 34px -18px rgba(20, 24, 29, .26),
+    0 44px 90px -48px rgba(29, 90, 102, .32);
 }
 
 /* Page 404 : panneau court avec un bouton de retour */
@@ -299,7 +297,7 @@ a:hover {
   padding: .5rem 1rem;
   border: 1px solid var(--line);
   border-radius: 999px;
-  background: rgba(90, 35, 95, .055);
+  background: rgba(20, 24, 29, .055);
   font: inherit;
   font-size: .86rem;
   font-weight: 500;
@@ -309,7 +307,7 @@ a:hover {
 }
 
 .pill:hover {
-  background: rgba(90, 35, 95, .09);
+  background: rgba(20, 24, 29, .09);
   border-color: var(--line-strong);
 }
 
@@ -320,7 +318,7 @@ a:hover {
   margin-bottom: 1.75rem;
   padding: .3rem;
   border-radius: 999px;
-  background: rgba(90, 35, 95, .055);
+  background: rgba(20, 24, 29, .055);
   border: 1px solid var(--line);
 }
 
@@ -343,13 +341,13 @@ a:hover {
 
 .tab:hover {
   color: var(--text);
-  background: rgba(90, 35, 95, .06);
+  background: rgba(20, 24, 29, .06);
 }
 
 .tab[aria-selected='true'] {
   background: var(--accent);
   color: #fff;
-  box-shadow: 0 6px 16px -8px rgba(90, 35, 95, .55);
+  box-shadow: 0 6px 16px -8px rgba(29, 90, 102, .55);
 }
 
 .tabpanel {
@@ -390,7 +388,7 @@ legend {
   background: var(--white);
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
-  box-shadow: inset 0 1px 2px rgba(90, 35, 95, .05);
+  box-shadow: inset 0 1px 2px rgba(20, 24, 29, .05);
   transition: border-color .25s var(--ease);
 }
 
@@ -444,7 +442,7 @@ legend {
 .btn--primary {
   background: var(--accent);
   color: #fff;
-  box-shadow: 0 10px 26px -10px rgba(90, 35, 95, .55);
+  box-shadow: 0 10px 26px -10px rgba(29, 90, 102, .55);
 }
 
 .btn--primary:hover {
@@ -456,13 +454,13 @@ legend {
 }
 
 .btn--secondary {
-  background: rgba(90, 35, 95, .05);
+  background: rgba(20, 24, 29, .05);
   border-color: var(--line);
   color: var(--text);
 }
 
 .btn--secondary:hover {
-  background: rgba(90, 35, 95, .08);
+  background: rgba(20, 24, 29, .08);
 }
 
 .btn--sm {
@@ -479,14 +477,14 @@ legend {
   padding: 0;
   border: 1px solid var(--line);
   border-radius: 999px;
-  background: rgba(90, 35, 95, .05);
+  background: rgba(20, 24, 29, .05);
   color: var(--text-dim);
   cursor: pointer;
   transition: background-color .3s var(--ease), color .3s var(--ease);
 }
 
 .btn-icon:hover {
-  background: rgba(90, 35, 95, .08);
+  background: rgba(20, 24, 29, .08);
   color: var(--accent-deep);
 }
 
@@ -550,7 +548,7 @@ legend {
     'hotes suppr';
   gap: .75rem;
   padding: .9rem;
-  background: rgba(255, 253, 246, .7);
+  background: rgba(255, 255, 255, .7);
   border: 1px solid var(--line-soft);
   border-radius: var(--r-sm);
 }
@@ -577,7 +575,7 @@ legend {
   justify-items: start;
   gap: 1rem;
   padding: 1.25rem;
-  background: rgba(255, 253, 246, .7);
+  background: rgba(255, 255, 255, .7);
   border: 1px dashed var(--line-strong);
   border-radius: var(--r-sm);
 }
@@ -603,6 +601,7 @@ legend {
   padding: 0;
   margin-bottom: .4rem;
   font-family: var(--display);
+  font-stretch: 82%;
   font-size: 1.1rem;
 }
 
@@ -646,13 +645,14 @@ legend {
   display: grid;
   gap: .75rem;
   padding: .9rem;
-  background: rgba(255, 253, 246, .7);
+  background: rgba(255, 255, 255, .7);
   border: 1px solid var(--line-soft);
   border-radius: var(--r-sm);
 }
 
 .vlan__titre {
   font-family: var(--display);
+  font-stretch: 82%;
   font-size: 1.05rem;
   font-weight: 600;
   color: var(--text);
@@ -796,8 +796,8 @@ legend {
   background: var(--white);
   border-radius: var(--r-md);
   box-shadow:
-    0 20px 45px -32px rgba(90, 35, 95, .3),
-    0 2px 8px -3px rgba(90, 35, 95, .06);
+    0 20px 45px -32px rgba(29, 90, 102, .3),
+    0 2px 8px -3px rgba(20, 24, 29, .06);
 }
 
 .card h3 {
@@ -819,8 +819,8 @@ legend {
   background: var(--line-soft);
   border-radius: var(--r-md);
   box-shadow:
-    0 20px 45px -32px rgba(90, 35, 95, .3),
-    0 2px 8px -3px rgba(90, 35, 95, .06);
+    0 20px 45px -32px rgba(29, 90, 102, .3),
+    0 2px 8px -3px rgba(20, 24, 29, .06);
 }
 
 .stat {
@@ -835,6 +835,7 @@ legend {
 .stat__value {
   margin: 0;
   font-family: var(--display);
+  font-stretch: 82%;
   font-weight: 600;
   font-size: clamp(1.2rem, 4.2vw, 1.75rem);
   line-height: 1.15;
@@ -965,9 +966,9 @@ legend {
 /* Les sous-réseaux se succèdent dans 4 teintes de violet ; « fill » colore un rectangle SVG,
    « background » colore la pastille de la légende (même classe pour les deux). */
 .seg-0 { fill: var(--accent-deep); background: var(--accent-deep); }
-.seg-1 { fill: #7a3f80; background: #7a3f80; }
-.seg-2 { fill: #a46ba9; background: #a46ba9; }
-.seg-3 { fill: #c9a3cc; background: #c9a3cc; }
+.seg-1 { fill: #3E7F8C; background: #3E7F8C; }
+.seg-2 { fill: #74A9B3; background: #74A9B3; }
+.seg-3 { fill: #B5D3D8; background: #B5D3D8; }
 
 /* Un trait clair sépare deux sous-réseaux voisins */
 .segment {
@@ -1041,7 +1042,7 @@ legend {
   font-family: var(--mono);
   font-size: .85rem;
   color: var(--accent-deep);
-  background: rgba(90, 35, 95, .055);
+  background: rgba(20, 24, 29, .055);
   border: 1px solid var(--line);
   border-radius: 999px;
 }
@@ -1091,6 +1092,7 @@ legend {
     padding: .5rem 0;
     border: 0;
     font-family: var(--display);
+  font-stretch: 82%;
     font-size: 1.1rem;
     font-weight: 600;
   }
