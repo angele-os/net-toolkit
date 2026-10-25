@@ -1,3 +1,6 @@
+# macOS : fichiers cachés créés par le Finder
+.DS_Store
+
 # Logs
 logs
 *.log
