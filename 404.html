@@ -7,7 +7,7 @@
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light">
-  <meta name="theme-color" content="#EDF0F1">
+  <meta name="theme-color" content="#ECEDE8">
   <!-- Une page d'erreur ne doit pas apparaître dans les moteurs de recherche -->
   <meta name="robots" content="noindex">
   <title>Page introuvable — net-toolkit</title>
@@ -15,6 +15,7 @@
        par ex. /a/b/c ; un chemin relatif chercherait alors /a/b/css/style.css. -->
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="preload" href="/fonts/instrument-sans-latin-standard-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/fonts/newsreader-latin-opsz-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
@@ -22,16 +23,27 @@
 
   <header class="site-header">
     <div class="wrap site-header__inner">
-      <a class="brand" href="https://ange-bonkoski.fr">Ange Bonkoski</a>
-      <a class="header-link" href="https://github.com/angele-os/net-toolkit">Code source</a>
+      <a class="brand" href="https://ange-bonkoski.fr"><span class="brand__mono" aria-hidden="true">AB</span><span class="brand__nom">Ange Bonkoski</span></a>
+      <p class="site-header__outil"><span class="site-header__nom">net-toolkit</span> <span class="site-header__version">v1.1.0</span></p>
+      <a class="header-link" href="https://github.com/angele-os/net-toolkit">
+        <span>Code source</span>
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg>
+      </a>
     </div>
   </header>
 
   <main id="contenu" class="wrap">
-    <section class="hero" aria-labelledby="titre">
-      <p class="eyebrow">ERREUR 404</p>
-      <h1 id="titre">Page introuvable</h1>
-      <p class="lead">Cette adresse ne correspond à aucune page de l'outil. Le lien est peut-être incomplet ou la page a été déplacée.</p>
+    <section class="hero hero--court" aria-labelledby="titre">
+      <div class="hero__haut">
+        <p class="eyebrow">ERREUR 404</p>
+        <h1 id="titre"><span class="ligne"><span class="ligne__in">Page introuvable</span></span></h1>
+        <!-- Le fil s'arrête ici : un bout de câble sans prise, débranché (décoratif). -->
+        <div class="fil" aria-hidden="true"><span class="fil__bout"></span></div>
+      </div>
+      <div class="hero__bas">
+        <p class="hero__role">Le câble n'est branché nulle part.</p>
+        <p class="lead">Cette adresse ne correspond à aucune page de l'outil. Le lien est peut-être incomplet ou la page a été déplacée.</p>
+      </div>
     </section>
 
     <div class="panel panel--court">
@@ -45,7 +57,7 @@
   <footer class="site-footer">
     <div class="wrap site-footer__inner">
       <p>net-toolkit — licence MIT</p>
-      <p>
+      <p class="site-footer__liens">
         <a href="https://ange-bonkoski.fr">Portfolio</a>
         <span aria-hidden="true">·</span>
         <a href="https://github.com/angele-os/net-toolkit">Dépôt GitHub</a>

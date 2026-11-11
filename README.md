@@ -13,7 +13,7 @@ Calculateur IPv4 et VLSM qui fonctionne entièrement dans le navigateur : analys
 
 HTML, CSS et JavaScript sans framework, sans dépendance npm.
 
-![Capture d'écran : configurations générées pour le plan d'exemple, avec la déclaration des VLAN côté switch et les sous-interfaces 802.1Q côté routeur](docs/capture-cisco.png)
+![Capture d'écran : configurations du switch et du routeur générées pour le plan d'exemple, avec l'avertissement « à relire et à tester » et les boutons Copier et Télécharger](docs/capture-cisco.png)
 
 ### En bref
 
@@ -150,6 +150,18 @@ Les tests couvrent :
 - l'export (`js/export.js`) ;
 - des règles de sécurité vérifiées automatiquement sur le HTML (CSP, absence de script en ligne, aucun `innerHTML`, `maxlength` égaux aux limites du code) et sur les workflows (actions épinglées par SHA). Ils s'exécutent à chaque push et à chaque pull request ; le site n'est publié que s'ils réussissent.
 
+### Interface
+
+L'interface reprend l'identité visuelle de mon portfolio ([ange-bonkoski.fr](https://ange-bonkoski.fr)), « le fil » : les deux sites partagent la même palette, les mêmes polices et le même motif de câble réseau.
+
+- **Palette** : papier `#ECEDE8`, feuille `#FAFAF7`, encre `#15181B`, et un seul accent, l'orange du câble `#EE4F1A` (assombri en `#A5360B` quand il sert de texte).
+- **Typographie** : Newsreader pour les titres et les grands chiffres, Instrument Sans pour l'interface, IBM Plex Mono pour les données réseau (adresses, masques, préfixes, configurations).
+- **Le fil** : un câble part de la prise RJ45 du titre ; les trois onglets sont les ports d'un panneau de brassage (voyant orange sur l'outil ouvert) ; les configurations Cisco s'affichent sur le seul panneau sombre de la page.
+- **Animations** : uniquement en CSS (aucune bibliothèque), courtes, et coupées si le système demande « moins de mouvement » (`prefers-reduced-motion`).
+- **Responsive** : de 320 px à 1920 px sans défilement horizontal ; sur petit écran, chaque ligne du plan VLSM devient une fiche, sans masquer de donnée.
+- **Accessibilité** : contrastes WCAG 2.2 AA, focus visible, navigation complète au clavier, cibles tactiles de 44 px.
+- **CSP inchangée** : tout est servi par le site (`css/`, `fonts/`), y compris le grain de papier (`css/grain.svg`) ; aucun style en ligne, aucune image `data:`.
+
 ### Sécurité
 
 net-toolkit est une page statique : pas de serveur, pas de base de données, pas de compte, et les saisies ne quittent jamais le navigateur. Les protections mises en place (CSP stricte avec Trusted Types, insertion du texte sans interprétation HTML, protection des exports CSV, listes blanches contre l'injection de commandes dans la configuration Cisco, aucun mot de passe demandé, limites de saisie, aucune dépendance, publication par liste blanche) sont détaillées avec le modèle de menace dans [SECURITY.md](SECURITY.md). Pour signaler une faille, merci d'utiliser le [signalement privé de GitHub](https://github.com/angele-os/net-toolkit/security/advisories/new) plutôt qu'une issue publique.
@@ -164,7 +176,7 @@ net-toolkit est une page statique : pas de serveur, pas de base de données, pas
 
 ### Licence
 
-Code distribué sous licence MIT : voir [LICENSE](LICENSE). La police Instrument Sans, auto-hébergée dans `fonts/`, est distribuée sous SIL Open Font License 1.1 : voir [fonts/README.md](fonts/README.md).
+Code distribué sous licence MIT : voir [LICENSE](LICENSE). Les polices Newsreader, Instrument Sans et IBM Plex Mono, auto-hébergées dans `fonts/`, sont distribuées sous SIL Open Font License 1.1 : voir [fonts/README.md](fonts/README.md).
 
 ---
 
@@ -301,6 +313,10 @@ The tests cover:
 - the export (`js/export.js`);
 - security rules checked automatically against the HTML (CSP, no inline script, no `innerHTML`, `maxlength` values matching the code limits) and the workflows (SHA-pinned actions). They run on every push and pull request; the site is only deployed when they pass.
 
+### Interface
+
+The interface shares the visual identity of my portfolio ([ange-bonkoski.fr](https://ange-bonkoski.fr)): warm paper background, ink text, a single orange accent drawn as a network cable, Newsreader for headings, Instrument Sans for the interface and IBM Plex Mono for network data. The three tabs are the ports of a patch panel, and the Cisco configurations are shown on the only dark panel of the page. Animations are CSS-only and respect `prefers-reduced-motion`; the layout works from 320 px to 1920 px with no horizontal scrolling, and meets WCAG 2.2 AA contrast. The CSP is unchanged: every resource, including the paper grain (`css/grain.svg`), is served by the site itself.
+
 ### Security
 
 net-toolkit is a static page: no server, no database, no account, and input never leaves the browser. The safeguards (strict CSP with Trusted Types, text inserted without HTML interpretation, CSV export protection, allow-lists against command injection into the Cisco configuration, no password requested, input limits, zero dependencies, allow-listed deployment) are documented together with the threat model in [SECURITY.md](SECURITY.md). To report a vulnerability, please use [GitHub private vulnerability reporting](https://github.com/angele-os/net-toolkit/security/advisories/new) rather than a public issue.
@@ -315,4 +331,4 @@ net-toolkit is a static page: no server, no database, no account, and input neve
 
 ### License
 
-Code released under the MIT License: see [LICENSE](LICENSE). The Instrument Sans font, self-hosted in `fonts/`, is released under the SIL Open Font License 1.1: see [fonts/README.md](fonts/README.md).
+Code released under the MIT License: see [LICENSE](LICENSE). The Newsreader, Instrument Sans and IBM Plex Mono fonts, self-hosted in `fonts/`, are released under the SIL Open Font License 1.1: see [fonts/README.md](fonts/README.md).

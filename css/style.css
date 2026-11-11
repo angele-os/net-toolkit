@@ -1,787 +1,1234 @@
-/* net-toolkit — styles
-   Identité visuelle reprise du portfolio (ange-bonkoski.fr) : « ardoise et brume », fond gris brume,
-   encre presque noire, un seul accent bleu pétrole, panneaux en verre.
-   Organisation : polices → variables → base → mise en page → composants → responsive → accessibilité. */
+/* ==========================================================================
+   net-toolkit — styles
+   Identité « le fil », reprise du portfolio (ange-bonkoski.fr) : papier gris chaud,
+   encre presque noire, grands titres serif, et un câble orange comme seul accent.
+   Ici c'est un outil : le fil part de la prise du titre, les trois onglets sont les
+   ports d'un panneau de brassage, et les configurations Cisco s'affichent sur le seul
+   panneau sombre de la page (encre sur papier, inversé).
 
-/* ========== 1. Polices auto-hébergées (Instrument Sans, licence SIL OFL 1.1, voir fonts/README.md) ========== */
+   SOMMAIRE (Ctrl+F sur le numéro pour sauter à une partie)
+    1. Polices            7. Onglets (ports)       13. Générateur Cisco
+    2. Variables          8. Feuille et exemples   14. Configurations (panneau sombre)
+    3. Base               9. Formulaires           15. Pied de page, page 404
+    4. En-tête           10. Boutons               16. Apparitions
+    5. Hero, prise, fil  11. Résultats (commun)    17. Responsive
+    6. Dessins SVG       12. Plan VLSM             18. Impression
+                                                   19. Préférences d'accessibilité
+   ========================================================================== */
+
+/* 1. POLICES ---------------------------------------------------------------
+   Toutes servies par le site (licence SIL OFL 1.1, voir fonts/README.md) : la CSP
+   « font-src 'self' » interdit de toute façon les polices venues d'ailleurs.
+   - Newsreader : titres et grands chiffres (fichier variable), plus une italique.
+   - Instrument Sans : interface et textes.
+   - IBM Plex Mono : uniquement les données (adresses IP, masques, préfixes, configurations). */
 @font-face {
-  font-family: 'Instrument Sans';
-  src: url('../fonts/instrument-sans-latin-standard-normal.woff2') format('woff2');
-  font-weight: 400 700;      /* police variable : graisses 400 à 700 dans un seul fichier */
-  font-stretch: 75% 100%;    /* et largeurs 75 % à 100 % : les titres sont légèrement condensés */
+  font-family: 'Newsreader';
+  src: url('../fonts/newsreader-latin-opsz-normal.woff2') format('woff2');
+  font-weight: 200 800;      /* police variable : toutes les graisses dans un seul fichier */
   font-style: normal;
   font-display: swap;        /* affiche le texte tout de suite avec une police de secours */
 }
 
-/* ========== 2. Variables : toutes les couleurs et mesures de l'identité visuelle ========== */
-:root {
-  /* Couleurs du portfolio (contrastes mesurés sur le fond --bg) */
-  --white: #fff;
-  --bg: #EDF0F1;            /* brume */
-  --bg-deep: #E4E9EB;
-
-  --accent: #1D5A66;        /* bleu pétrole : 6,8:1 (blanc sur pétrole : 7,8:1) */
-  --accent-deep: #143F48;
-  --accent-soft: rgba(29, 90, 102, .10);
-  --accent-glow: rgba(29, 90, 102, .28);
-
-  --text: #14181D;          /* encre : 15,6:1 */
-  --text-dim: #46505A;      /* texte secondaire : 7,2:1 */
-  --text-faint: #59636D;    /* texte discret : 5,3:1 */
-
-  --line: rgba(20, 24, 29, .12);
-  --line-soft: rgba(20, 24, 29, .08);
-  --line-strong: rgba(20, 24, 29, .2);
-
-  /* Rouge des erreurs : couleur d'alerte, volontairement distincte de l'accent */
-  --error: #B42318;
-  --error-bg: rgba(180, 35, 24, .07);
-  --error-line: rgba(180, 35, 24, .3);
-
-  --r-lg: 26px;
-  --r-md: 18px;
-  --r-sm: 12px;
-  --ease: cubic-bezier(.16, 1, .3, 1);
-
-  --sans: 'Instrument Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --display: var(--sans);   /* titres : même police, plus condensée (font-stretch) */
-  --mono: ui-monospace, 'SF Mono', 'Cascadia Code', 'Menlo', 'Consolas', monospace;
-
-  /* Marge latérale de la page */
-  --gutter: clamp(1.25rem, 4vw, 3rem);
+@font-face {
+  font-family: 'Newsreader';
+  src: url('../fonts/newsreader-latin-wght-italic.woff2') format('woff2');
+  font-weight: 200 800;
+  font-style: italic;
+  font-display: swap;
 }
 
-/* ========== 3. Base ========== */
+@font-face {
+  font-family: 'Instrument Sans';
+  src: url('../fonts/instrument-sans-latin-standard-normal.woff2') format('woff2');
+  font-weight: 400 700;
+  font-stretch: 75% 100%;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'IBM Plex Mono';
+  src: url('../fonts/ibm-plex-mono-latin-400-normal.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* 2. VARIABLES ------------------------------------------------------------- */
+:root {
+  /* Couleurs du portfolio (contrastes mesurés sur --paper, puis sur --sheet) */
+  --paper: #ECEDE8;          /* papier gris : le fond de la page */
+  --sheet: #FAFAF7;          /* feuille posée sur le papier : la zone de travail */
+  --ink: #15181B;            /* encre : 15,1:1 et 17,0:1 */
+  --ink-2: #42484E;          /* texte secondaire : 7,9:1 et 8,9:1 */
+  --ink-3: #5C6268;          /* texte discret : 5,2:1 et 5,9:1 */
+  --wire: #EE4F1A;           /* le câble : jamais utilisé pour du texte */
+  --wire-deep: #A5360B;      /* le même orange, assombri pour le texte : 5,6:1 et 6,3:1 */
+  --led: #128A49;            /* voyant sur fond clair */
+  --led-bright: #43E08A;     /* voyant sur fond sombre */
+  --ok: #0E7A40;             /* « copié » : vert assombri pour le texte, 5,2:1 sur --sheet */
+  --error: #A8201A;          /* erreurs : rouge distinct de l'orange du câble, 7,0:1 sur --sheet */
+  --line: rgba(21, 24, 27, .2);
+  --line-soft: rgba(21, 24, 27, .11);
+  --field-line: rgba(21, 24, 27, .56);   /* bord des champs : 4,1:1, un champ doit se voir (WCAG 1.4.11) */
+  --paper-soft: rgba(236, 237, 232, .74);  /* texte discret sur le panneau sombre : 8,7:1 */
+  --paper-line: rgba(236, 237, 232, .22);
+
+  /* Profondeur : une ombre courte et nette + une ombre longue et diffuse */
+  --shadow-sheet: 0 1px 1px rgba(21, 24, 27, .06), 0 10px 20px -10px rgba(21, 24, 27, .2), 0 36px 60px -34px rgba(21, 24, 27, .34);
+
+  --r-sm: 6px;
+  --r-md: 12px;
+  --r-lg: 26px;
+
+  /* Mise en page */
+  --wrap: 1360px;
+  --gutter: clamp(1rem, 6.4vw, 4.5rem);
+  --nav-h: 4.25rem;
+  --sheet-pad: clamp(1.1rem, 4.2vw, 3.25rem);
+  --etat-w: 15.5rem;          /* largeur de la colonne de la prise, à droite du titre */
+  --jack-w: 44px;             /* largeur de la prise : le câble est centré dessus */
+
+  --ease: cubic-bezier(.16, 1, .3, 1);
+
+  --serif: 'Newsreader', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+  --sans: 'Instrument Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+}
+
+/* 3. BASE ------------------------------------------------------------------ */
 *,
 *::before,
 *::after {
   box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
 html {
+  scrollbar-color: var(--ink-3) transparent;
+  scroll-padding-top: calc(var(--nav-h) + 1.25rem);
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
 }
 
 body {
-  margin: 0;
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
+  /* Le grain de papier est un petit fichier SVG : la CSP interdit les images « data: » */
+  background: var(--paper) url('grain.svg');
+  color: var(--ink);
   font-family: var(--sans);
-  line-height: 1.55;
-  color: var(--text);
-  /* Fond brume + halos très flous (pétrole, bleu, sable), comme le portfolio, sans animation */
-  background-color: var(--bg);
-  background-image:
-    radial-gradient(ellipse 60rem 40rem at 0% -10%, rgba(29, 90, 102, .22), transparent 62%),
-    radial-gradient(ellipse 46rem 34rem at 100% 0%, rgba(84, 112, 150, .16), transparent 60%),
-    radial-gradient(ellipse 52rem 36rem at 40% 75%, rgba(205, 190, 166, .30), transparent 65%),
-    radial-gradient(ellipse 40rem 30rem at 100% 95%, rgba(110, 170, 180, .20), transparent 60%);
-  background-repeat: no-repeat;
-  background-attachment: fixed;
+  font-size: 1rem;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow-wrap: break-word;
+}
+
+main {
+  flex: 1;
+}
+
+/* L'attribut hidden cache toujours l'élément, même si une règle plus bas lui donne un display */
+[hidden] { display: none !important; }
+
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+a {
+  color: inherit;
+}
+
+ul,
+ol {
+  list-style: none;
+}
+
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  background: none;
+  border: 0;
+  cursor: pointer;
 }
 
 h1,
 h2,
 h3 {
-  margin: 0;
-  font-family: var(--display);
-  font-weight: 650;
-  font-stretch: 82%;
-  letter-spacing: -0.02em;
-  line-height: 1.15;
-  color: var(--text);
+  color: var(--ink);
+  font-weight: 400;
+  text-wrap: balance;
+}
+
+p,
+li {
+  text-wrap: pretty;
 }
 
 p {
-  margin: 0;
-  color: var(--text-dim);
+  color: var(--ink-2);
 }
 
-a {
-  color: var(--accent);
-  text-underline-offset: .2em;
+strong {
+  font-weight: 650;
+  color: var(--ink);
 }
 
-a:hover {
-  color: var(--accent-deep);
+code {
+  font-family: var(--mono);
+  font-size: .92em;
 }
 
 ::selection {
-  background: var(--accent-soft);
+  background: var(--ink);
+  color: var(--paper);
 }
 
-/* Focus clavier bien visible sur tous les éléments interactifs */
+/* Indicateur de focus : toujours visible au clavier, orange foncé (5,6:1 sur le papier) */
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--wire-deep);
   outline-offset: 3px;
+  border-radius: 4px;
 }
 
-/* L'attribut hidden cache toujours l'élément. Sans cette règle, un « display: grid » (ex. .results, .form)
-   l'emporterait sur le display: none par défaut du navigateur, et des blocs vides resteraient visibles. */
-[hidden] {
-  display: none !important;
-}
-
-/* Masqué à l'écran mais lu par les lecteurs d'écran */
 .sr-only {
   position: absolute;
   width: 1px;
   height: 1px;
-  padding: 0;
   margin: -1px;
+  padding: 0;
   overflow: hidden;
-  clip: rect(0 0 0 0);
+  clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
 }
 
-/* Lien d'évitement : invisible tant qu'il n'a pas le focus clavier */
+.svg-defs {
+  position: absolute;
+}
+
 .skip-link {
   position: absolute;
   left: 1rem;
-  top: -4rem;
-  z-index: 10;
-  padding: .7rem 1.2rem;
+  top: -5rem;
+  z-index: 6000;
+  padding: .8rem 1.3rem;
   border-radius: 999px;
-  background: var(--accent);
-  color: #fff;
+  background: var(--ink);
+  color: var(--paper);
   font-weight: 600;
   text-decoration: none;
+  transition: top .25s var(--ease);
 }
 
 .skip-link:focus {
   top: 1rem;
-  color: #fff;
+  outline-color: var(--wire);
 }
 
-/* ========== 4. Mise en page ========== */
+/* Données techniques : toujours en IBM Plex Mono, chiffres de même largeur */
+.mono {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+.icon {
+  width: 1.05rem;
+  height: 1.05rem;
+  flex-shrink: 0;
+}
+
 .wrap {
-  /* Largeur max 1180px, avec la marge latérale de chaque côté sur petit écran */
-  width: min(1180px, 100% - 2 * var(--gutter));
-  margin-inline: auto;
+  width: 100%;
+  max-width: var(--wrap);
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+}
+
+/* 4. EN-TÊTE ----------------------------------------------------------------
+   Même barre que le portfolio : monogramme cerclé, nom, puis le lien vers le code. */
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 5000;
+  background: rgba(236, 237, 232, .9);
+  border-bottom: 1px solid var(--line-soft);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
 }
 
 .site-header__inner {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding-block: 1rem;
+  gap: .75rem 1.25rem;
+  height: var(--nav-h);
 }
 
 .brand {
   display: inline-flex;
   align-items: center;
+  gap: .7rem;
   min-height: 44px;
-  font-weight: 800;
-  color: var(--text);
+  font-weight: 600;
+  font-size: .98rem;
   text-decoration: none;
+  white-space: nowrap;
+}
+
+.brand__mono {
+  display: grid;
+  place-items: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  padding-top: .08em;
+  border: 1.5px solid var(--ink);
+  border-radius: 50%;
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 500;
+  font-size: .95rem;
+  line-height: 1;
+  transition: background-color .25s, color .25s;
+}
+
+/* Nom de l'outil et version : une information secondaire, en mono, derrière un filet */
+.site-header__outil {
+  display: none;
+  align-items: baseline;
+  gap: .5rem;
+  padding-left: 1.25rem;
+  border-left: 1px solid var(--line);
+  font-family: var(--mono);
+  font-size: .84rem;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.site-header__nom {
+  color: var(--ink);
+}
+
+.site-header__version {
+  color: var(--ink-3);
 }
 
 .header-link {
   display: inline-flex;
   align-items: center;
+  gap: .45rem;
   min-height: 44px;
-  font-size: .92rem;
-  font-weight: 500;
-  color: var(--text-dim);
+  margin-left: auto;
+  padding: 0 1.05rem 0 1.15rem;
+  border: 1.5px solid var(--ink);
+  border-radius: 999px;
+  font-size: .9rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background-color .25s, color .25s;
 }
 
+.header-link .icon {
+  width: .95rem;
+  height: .95rem;
+  transition: transform .35s var(--ease);
+}
+
+/* 5. HERO, PRISE, FIL -------------------------------------------------------
+   Le titre à gauche, la prise réseau à droite. Le câble descend de la prise,
+   tourne, et souligne le titre jusqu'à la marge : c'est la signature du portfolio. */
 .hero {
-  padding-block: clamp(1.75rem, 6vw, 4rem) clamp(1.5rem, 3vw, 2.25rem);
+  padding: clamp(2.25rem, 6vw, 4.75rem) 0 clamp(2.5rem, 5vw, 4rem);
+}
+
+.hero__haut {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  /* Petits écrans : le câble longe le bord droit, le titre lui laisse la place */
+  padding-right: calc(var(--jack-w) + .85rem);
 }
 
 .eyebrow {
-  margin-bottom: .9rem;
   font-family: var(--mono);
-  font-size: .78rem;
-  letter-spacing: .04em;
-  color: var(--text-dim);
+  font-size: .82rem;
+  line-height: 1.4;
+  color: var(--ink-3);
 }
 
 .hero h1 {
-  font-size: clamp(2rem, 5.5vw, 3.4rem);
-  line-height: 1.1;
+  margin: .9rem 0 0 -.03em;
+  font-family: var(--serif);
+  font-weight: 420;
+  font-size: clamp(2.25rem, 11.4vw, 7.6rem);
+  line-height: .9;
+  letter-spacing: -.045em;
+}
+
+/* Chaque ligne du titre monte depuis un bloc qui la masque (voir « Apparitions ») */
+.ligne {
+  display: block;
+  overflow: hidden;
+  padding: .09em .04em .16em;
+  margin: 0 -.04em -.16em;
+}
+
+.ligne__in {
+  display: block;
+}
+
+/* La prise et son état : au-dessus du titre sur petit écran (texte à gauche, prise à droite) */
+.etat {
+  order: -1;
+  display: flex;
+  flex-direction: row-reverse;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin: 0 calc((var(--jack-w) + .85rem) * -1) 1.1rem 0;
+}
+
+.jack {
+  position: relative;
+  z-index: 1;
+  width: var(--jack-w);
+  height: auto;
+  flex-shrink: 0;
+  overflow: visible;
+  --jack-led: var(--led);
+}
+
+.etat__texte {
+  padding-top: .2rem;
+}
+
+.etat__titre {
+  font-size: 1.02rem;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--ink);
+}
+
+.etat__detail {
+  margin-top: .3rem;
+  font-family: var(--mono);
+  font-size: .82rem;
+  line-height: 1.4;
+  color: var(--ink-2);
+}
+
+/* Le fil : deux bords d'une boîte (droite et bas) et un coin arrondi font un câble en « L ».
+   Il part sous la prise, descend, tourne et file vers la gauche. */
+.fil {
+  position: absolute;
+  z-index: 0;
+  /* 85 % de la hauteur de la prise : le câble sort de sa gaine orange, sans trou */
+  top: calc(var(--jack-w) * 1.85);
+  /* Centré sous la prise : (largeur de la prise − épaisseur du câble) ÷ 2 */
+  right: calc((var(--jack-w) - 5px) / 2);
+  bottom: -1.5rem;
+  left: -.35rem;
+  border: solid var(--wire);
+  border-width: 0 5px 5px 0;
+  border-bottom-right-radius: 30px;
+  filter: drop-shadow(1.5px 3px 0 rgba(21, 24, 27, .16));
+  pointer-events: none;
+}
+
+/* Le bout du fil : un point et son halo, posés sur l'extrémité gauche */
+.fil__bout,
+.fil__bout::after {
+  position: absolute;
+  border-radius: 50%;
+  background: var(--wire);
+}
+
+.fil__bout {
+  left: -6px;
+  bottom: -9px;
+  width: 13px;
+  height: 13px;
+  box-shadow: 0 0 0 2.5px var(--paper);
+}
+
+.fil__bout::after {
+  content: '';
+  inset: -6px;
+  opacity: .2;
+  animation: halo 2.2s ease-in-out infinite;
+}
+
+@keyframes halo {
+  0%, 100% { transform: scale(.7); opacity: .26; }
+  50% { transform: scale(1.15); opacity: .1; }
+}
+
+.hero__bas {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.25rem 3rem;
+  margin-top: clamp(3rem, 6vw, 4.25rem);
+}
+
+.hero__role {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: clamp(1.6rem, 3.3vw, 2.6rem);
+  line-height: 1.08;
+  letter-spacing: -.02em;
+  color: var(--ink);
 }
 
 .lead {
-  margin-top: 1rem;
-  max-width: 60ch;
-  font-size: 1.05rem;
+  max-width: 54ch;
+  font-size: clamp(1.03rem, 1.3vw, 1.16rem);
 }
 
-/* Panneau principal en effet verre */
-.panel {
-  margin-bottom: 4rem;
-  padding: clamp(1.1rem, 3.5vw, 2.25rem);
-  background: linear-gradient(180deg, rgba(255, 255, 255, .58), rgba(255, 255, 255, .34));
-  border: 1px solid rgba(255, 255, 255, .6);
-  border-radius: var(--r-lg);
-  -webkit-backdrop-filter: blur(14px) saturate(170%);
-  backdrop-filter: blur(14px) saturate(170%);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, .95),
-    inset 0 -1px 0 rgba(20, 24, 29, .04),
-    0 1px 1px rgba(20, 24, 29, .04),
-    0 14px 34px -18px rgba(20, 24, 29, .26),
-    0 44px 90px -48px rgba(29, 90, 102, .32);
-}
-
-/* Page 404 : panneau court avec un bouton de retour */
-.panel--court {
-  max-width: 40rem;
-}
-
-.panel__action {
-  margin-top: 1.25rem;
-}
-
-.site-footer {
-  margin-top: auto;
-  border-top: 1px solid var(--line);
-}
-
-.site-footer__inner {
+/* Informations secondaires : version, licence… en mono, séparées par un point médian */
+.hero__meta {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: .5rem 1.5rem;
-  padding-block: 1.5rem 2rem;
-}
-
-.site-footer p {
+  gap: .25rem 1.25rem;
+  margin-top: 1.25rem;
+  font-family: var(--mono);
   font-size: .82rem;
-  color: var(--text-faint);
+  color: var(--ink-3);
 }
 
-.site-footer a {
-  display: inline-block;
-  padding-block: .6rem; /* zone cliquable plus haute */
-  color: var(--text-dim);
+.hero__meta li {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
 }
 
-/* ========== 5. Composants ========== */
+/* Une pastille de câble devant chaque information (lisible même quand la liste passe à la ligne) */
+.hero__meta li::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--wire);
+}
 
-/* --- Message affiché quand JavaScript est désactivé (<noscript>) --- */
+/* 6. DESSINS SVG (prise et port, définis une fois dans index.html) ----------
+   Les couleurs passent par des variables : un même dessin peut ainsi changer
+   d'état (voyant allumé, survol) ou de fond (panneau sombre). */
+.jack-house { fill: var(--sheet); stroke: var(--ink); stroke-width: 1.6; }
+.jack-hole { fill: var(--ink); opacity: .14; }
+.jack-led-off { fill: transparent; stroke: var(--ink); stroke-width: 1.2; stroke-opacity: .45; }
+.jack-led { fill: var(--jack-led); }
+.jack-plug { fill: var(--paper); stroke: var(--ink); stroke-width: 1.5; }
+.jack-pins { fill: none; stroke: #B98A1F; stroke-width: 1.1; stroke-linecap: round; }
+.jack-tab { fill: none; stroke: var(--ink); stroke-width: 1.2; opacity: .55; }
+.jack-boot { fill: var(--wire); stroke: var(--ink); stroke-width: 1.5; stroke-linejoin: round; }
+.jack-ribs { fill: none; stroke: var(--ink); stroke-width: 1.1; stroke-linecap: round; opacity: .4; }
+
+/* Le voyant de lien respire doucement (couleur déclarée pour pouvoir être animée) */
+@property --jack-led {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #128A49;
+}
+
+.jack {
+  animation: led 2.6s ease-in-out infinite;
+}
+
+@keyframes led {
+  0%, 100% { --jack-led: #128A49; }
+  50% { --jack-led: #1FC46B; }
+}
+
+.port-house { fill: var(--port-house, var(--sheet)); stroke: var(--port-stroke, var(--ink)); stroke-width: 1.5; }
+.port-hole { fill: var(--port-fill, var(--ink)); transition: fill .25s; }
+.port-pins { fill: none; stroke: #C99A2A; stroke-width: 1.3; stroke-linecap: round; }
+.port-led { fill: var(--port-led, rgba(21, 24, 27, .14)); transition: fill .4s; }
+
+/* 7. ONGLETS : LES PORTS DU PANNEAU DE BRASSAGE -----------------------------
+   Trois ports, trois outils. Le voyant du port ouvert passe à l'orange et un tronçon
+   de câble glisse sous lui. Tout est en CSS : app.js ne change que aria-selected. */
+.panel__label {
+  padding-top: .85rem;
+  border-top: 1px solid var(--ink);
+  font-family: var(--mono);
+  font-size: .8rem;
+  color: var(--ink-3);
+}
+
+.tabs {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: .35rem;
+  border-bottom: 1px solid var(--line);
+}
+
+/* Le repère : un tronçon de câble sous le port ouvert. translateX(100 %) = une colonne plus loin. */
+.tabs::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -2px;
+  width: calc(100% / 3);
+  height: 3px;
+  border-radius: 3px;
+  background: var(--wire);
+  pointer-events: none;
+  transition: transform .5s var(--ease);
+}
+
+.tabs:has(#tab-vlsm[aria-selected="true"])::after {
+  transform: translateX(100%);
+}
+
+.tabs:has(#tab-cisco[aria-selected="true"])::after {
+  transform: translateX(200%);
+}
+
+.tab {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    "ico num"
+    "nom nom";
+  align-content: start;
+  align-items: center;
+  gap: .45rem .5rem;
+  min-height: 4.75rem;
+  padding: .8rem .3rem .9rem 0;
+  text-align: left;
+  color: var(--ink-2);
+  transition: color .2s;
+}
+
+.tab + .tab {
+  padding-left: .5rem;
+  border-left: 1px solid var(--line-soft);
+}
+
+.tab__port {
+  grid-area: ico;
+  width: 28px;
+  height: auto;
+  overflow: visible;
+  transition: transform .35s var(--ease);
+}
+
+.tab__num {
+  grid-area: num;
+  font-family: var(--mono);
+  font-size: .72rem;
+  line-height: 1.1;
+  color: var(--ink-3);
+  transition: color .2s;
+}
+
+.tab__nom {
+  grid-area: nom;
+  font-size: .8rem;
+  font-weight: 600;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+/* Port ouvert : voyant orange, texte à l'encre */
+.tab[aria-selected="true"] {
+  color: var(--ink);
+  --port-led: var(--wire);
+}
+
+.tab[aria-selected="true"] .tab__num {
+  color: var(--wire-deep);
+}
+
+.tab:active {
+  --port-fill: var(--wire);
+}
+
+.tab:focus-visible {
+  outline-offset: -3px;
+}
+
+/* Navigateur sans :has() : pas de repère glissant, le port ouvert porte lui-même le trait */
+@supports not selector(:has(*)) {
+  .tabs::after {
+    display: none;
+  }
+
+  .tab[aria-selected="true"] {
+    box-shadow: inset 0 -3px 0 var(--wire);
+  }
+}
+
+/* 8. LA FEUILLE DE TRAVAIL ET LES EXEMPLES ----------------------------------
+   Chaque outil est une feuille claire posée sur le papier. */
+.panel {
+  padding-bottom: clamp(3rem, 7vw, 6rem);
+}
+
+.tabpanel {
+  margin-top: clamp(1.25rem, 3vw, 2.25rem);
+  padding: var(--sheet-pad);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-md);
+  background: var(--sheet);
+  box-shadow: var(--shadow-sheet);
+}
+
 .noscript {
   margin-bottom: 1.5rem;
-  padding: .9rem 1.1rem;
-  color: var(--text);
-  background: var(--white);
-  border: 1px solid var(--line-strong);
-  border-radius: var(--r-sm);
+  padding: 1rem 1.25rem;
+  border-left: 3px solid var(--wire);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  background: var(--sheet);
+  color: var(--ink);
 }
 
-/* --- Exemples rapides : boutons en pilule --- */
 .exemples {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: .5rem;
-  margin-bottom: 1.5rem;
+  margin-bottom: clamp(1.5rem, 3vw, 2.25rem);
 }
 
 .exemples__titre {
   margin-right: .25rem;
   font-family: var(--mono);
-  font-size: .78rem;
-  color: var(--text-dim);
+  font-size: .8rem;
+  color: var(--ink-3);
 }
 
 .pill {
-  min-height: 44px;
-  padding: .5rem 1rem;
-  border: 1px solid var(--line);
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: .35rem 1.05rem;
+  border: 1px solid var(--field-line);
   border-radius: 999px;
-  background: rgba(20, 24, 29, .055);
-  font: inherit;
-  font-size: .86rem;
+  font-size: .9rem;
   font-weight: 500;
-  color: var(--text);
-  cursor: pointer;
-  transition: background-color .3s var(--ease), border-color .3s var(--ease);
-}
-
-.pill:hover {
-  background: rgba(20, 24, 29, .09);
-  border-color: var(--line-strong);
-}
-
-/* --- Onglets (comme le sélecteur de langue du portfolio) --- */
-.tabs {
-  display: flex;
-  gap: .25rem;
-  margin-bottom: 1.75rem;
-  padding: .3rem;
-  border-radius: 999px;
-  background: rgba(20, 24, 29, .055);
-  border: 1px solid var(--line);
-}
-
-/* Mobile : 3 onglets doivent tenir sur la largeur, leur texte peut passer sur 2 lignes */
-.tab {
-  flex: 1;
-  min-height: 44px;
-  padding: .45rem .6rem;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  font: inherit;
-  font-size: .86rem;
-  font-weight: 600;
   line-height: 1.2;
-  color: var(--text-dim);
-  cursor: pointer;
-  transition: background-color .3s var(--ease), color .3s var(--ease);
+  color: var(--ink);
+  text-align: left;
+  transition: background-color .25s, color .25s, border-color .25s, transform .15s;
 }
 
-.tab:hover {
-  color: var(--text);
-  background: rgba(20, 24, 29, .06);
+.pill:active {
+  transform: translateY(1px) scale(.985);
 }
 
-.tab[aria-selected='true'] {
-  background: var(--accent);
-  color: #fff;
-  box-shadow: 0 6px 16px -8px rgba(29, 90, 102, .55);
-}
-
-.tabpanel {
-  border-radius: var(--r-sm);
-}
-
-/* --- Formulaires --- */
+/* 9. FORMULAIRES ------------------------------------------------------------ */
 .form {
   display: grid;
-  gap: 1.5rem;
+  grid-template-columns: minmax(0, 1fr);
+  gap: clamp(1.5rem, 3vw, 2.25rem);
 }
 
 .field {
-  display: grid;
-  gap: .4rem;
-  align-content: start;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
 
-label,
-legend {
-  font-size: .92rem;
+.field > label,
+.besoins legend {
+  font-size: .95rem;
   font-weight: 600;
-  color: var(--text);
+  line-height: 1.35;
+  color: var(--ink);
 }
 
 .hint {
-  font-size: .84rem;
-  color: var(--text-faint);
+  margin-top: .2rem;
+  font-size: .88rem;
+  line-height: 1.45;
+  color: var(--ink-3);
 }
 
 .input {
   width: 100%;
-  min-height: 48px;
-  padding: .7rem 1rem;
-  font: inherit;
-  font-size: 1rem;
-  color: var(--text);
-  background: var(--white);
-  border: 1px solid var(--line);
+  min-height: 3rem;
+  margin-top: .5rem;
+  padding: .6rem .9rem;
+  border: 1px solid var(--field-line);
   border-radius: var(--r-sm);
-  box-shadow: inset 0 1px 2px rgba(20, 24, 29, .05);
-  transition: border-color .25s var(--ease);
+  background: #fff;
+  /* 1rem au minimum : en dessous, iOS zoome dans le champ */
+  font-size: 1rem;
+  line-height: 1.4;
+  color: var(--ink);
+  transition: border-color .2s, box-shadow .2s, background-color .2s;
 }
 
-.input:focus {
-  border-color: var(--accent);
-}
-
-/* IP, masques et nombres en police à chasse fixe */
+/* Valeurs réseau (IP, masque, hostname, ports) : en mono, chiffres alignés */
 .input--mono {
   font-family: var(--mono);
-  font-size: .95rem;
+  font-variant-numeric: tabular-nums;
 }
 
-.input[aria-invalid='true'] {
-  border-color: var(--error-line);
+.input:focus-visible {
+  outline: 2px solid var(--wire-deep);
+  outline-offset: 2px;
+  border-color: var(--ink);
+  border-radius: var(--r-sm);
+}
+
+.input:disabled {
+  cursor: not-allowed;
+  background: transparent;
+  border-style: dashed;
+}
+
+/* Champ refusé : bord rouge épaissi (box-shadow) + message juste dessous */
+.input[aria-invalid="true"] {
+  border-color: var(--error);
+  box-shadow: 0 0 0 1px var(--error);
 }
 
 .field-error {
-  padding: .5rem .75rem;
-  font-size: .85rem;
+  display: flex;
+  align-items: flex-start;
+  gap: .45rem;
+  margin-top: .45rem;
+  font-size: .88rem;
+  font-weight: 500;
+  line-height: 1.4;
   color: var(--error);
-  background: var(--error-bg);
-  border: 1px solid var(--error-line);
-  border-radius: 10px;
 }
 
-/* Pas d'erreur = pas de cadre rouge vide */
+/* Zone d'erreur vide : elle ne prend aucune place */
 .field-error:empty {
   display: none;
 }
 
-/* --- Boutons en pilule --- */
-.btn {
-  display: inline-flex;
+/* Un petit « ! » cerclé : l'erreur ne repose pas que sur la couleur */
+.field-error::before {
+  content: '!';
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 1.05rem;
+  height: 1.05rem;
+  margin-top: .1rem;
+  border-radius: 50%;
+  background: var(--error);
+  color: var(--sheet);
+  font-size: .72rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.form-error {
+  margin-top: .9rem;
+}
+
+/* Les champs principaux (adresse à analyser, réseau de départ) : plus grands, ils ouvrent l'outil */
+.form > .field {
+  max-width: 34rem;
+}
+
+#ip-input,
+#vlsm-reseau {
+  min-height: 3.6rem;
+  padding: .7rem 1.1rem;
+  font-size: clamp(1.1rem, 2.2vw, 1.35rem);
+}
+
+/* Sélecteur : apparence native retirée, chevron dessiné en CSS (aucune image) */
+.select {
+  position: relative;
+}
+
+.select .input {
+  -webkit-appearance: none;
+  appearance: none;
+  padding-right: 2.6rem;
+  cursor: pointer;
+}
+
+.select::after {
+  content: '';
+  position: absolute;
+  right: 1.05rem;
+  top: calc(.5rem + 1.5rem);
+  width: .55rem;
+  height: .55rem;
+  border: solid var(--ink);
+  border-width: 0 1.5px 1.5px 0;
+  transform: translateY(-70%) rotate(45deg);
+  pointer-events: none;
+}
+
+/* Case à cocher : un carré à l'encre, la coche est dessinée par clip-path */
+.option {
+  display: flex;
   align-items: center;
-  justify-content: center;
-  gap: .55rem;
-  min-height: 44px;
-  padding: .85rem 1.65rem;
-  border: 1px solid transparent;
-  border-radius: 999px;
-  font: inherit;
+  gap: .7rem;
+  min-height: 2.75rem;
+}
+
+.option label {
   font-size: .95rem;
   font-weight: 600;
-  line-height: 1.2;
-  text-decoration: none;
+  line-height: 1.35;
+  color: var(--ink);
   cursor: pointer;
-  transition: background-color .3s var(--ease), box-shadow .3s var(--ease), transform .3s var(--ease);
 }
 
-.btn--primary {
-  background: var(--accent);
-  color: #fff;
-  box-shadow: 0 10px 26px -10px rgba(29, 90, 102, .55);
-}
-
-.btn--primary:hover {
-  background: var(--accent-deep);
-}
-
-.btn--primary:active {
-  transform: translateY(1px);
-}
-
-.btn--secondary {
-  background: rgba(20, 24, 29, .05);
-  border-color: var(--line);
-  color: var(--text);
-}
-
-.btn--secondary:hover {
-  background: rgba(20, 24, 29, .08);
-}
-
-.btn--sm {
-  padding: .6rem 1.1rem;
-  font-size: .88rem;
-}
-
-/* Bouton rond avec seulement une icône (supprimer une ligne) */
-.btn-icon {
-  display: inline-grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  padding: 0;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: rgba(20, 24, 29, .05);
-  color: var(--text-dim);
+.case {
+  -webkit-appearance: none;
+  appearance: none;
+  display: grid;
+  place-content: center;
+  flex-shrink: 0;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 1.5px solid var(--ink);
+  border-radius: 5px;
+  background: #fff;
   cursor: pointer;
-  transition: background-color .3s var(--ease), color .3s var(--ease);
+  transition: background-color .2s;
 }
 
-.btn-icon:hover {
-  background: rgba(20, 24, 29, .08);
-  color: var(--accent-deep);
+.case::before {
+  content: '';
+  width: .82rem;
+  height: .82rem;
+  background: var(--paper);
+  clip-path: polygon(14% 50%, 2% 63%, 38% 96%, 100% 22%, 87% 10%, 37% 69%);
+  transform: scale(0);
+  transition: transform .25s var(--ease);
 }
 
-.btn-icon:disabled {
-  opacity: .4;
-  cursor: not-allowed;
+.case:checked {
+  background: var(--ink);
 }
 
-.icon {
-  width: 1.1em;
-  height: 1.1em;
-  flex: none;
+.case:checked::before {
+  transform: scale(1);
 }
 
-/* Bouton « Copier » : l'icône coche remplace l'icône copie pendant ~2 s (classe ajoutée par app.js) */
-.btn-copy .icon-check,
-.btn-copy.is-copied .icon-copy {
-  display: none;
+.case[aria-invalid="true"] {
+  border-color: var(--error);
+  box-shadow: 0 0 0 1px var(--error);
 }
 
-.btn-copy.is-copied .icon-check {
-  display: block;
-}
-
-/* --- Liste des besoins VLSM --- */
+/* Groupes de réglages : un filet à l'encre, puis le nom du groupe en italique (comme les domaines du portfolio) */
+.groupe,
 .besoins {
-  margin: 0;
-  padding: 0;
-  border: 0;
   min-width: 0;
+  border: 0;
+  border-top: 1px solid var(--ink);
+  padding-top: 1.1rem;
 }
 
+/* float : sort la légende du bord du fieldset, sinon elle couperait le filet du haut */
+.groupe legend,
 .besoins legend {
-  padding: 0;
-  margin-bottom: .4rem;
+  float: left;
+  width: 100%;
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 400;
+  font-size: clamp(1.45rem, 2.4vw, 1.9rem);
+  line-height: 1.1;
+  letter-spacing: -.015em;
 }
 
-/* Message « Limite de 256 besoins atteinte » sous le bouton Ajouter */
-.besoins__limite {
-  margin-top: .5rem;
+.groupe legend + *,
+.besoins legend + * {
+  clear: both;
+}
+
+.groupe > .hint,
+.besoins > .hint {
+  max-width: 72ch;
+  padding-top: .5rem;
+  font-size: .92rem;
+  color: var(--ink-2);
+}
+
+.grille {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.25rem 1.5rem;
+  max-width: 56rem;
+  padding-top: 1.25rem;
+}
+
+/* --- Liste des besoins VLSM : une ligne numérotée par sous-réseau --- */
+.besoins__liste {
+  counter-reset: besoin;
+  max-width: 46rem;
+  margin: 1rem 0 1.1rem;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.besoin {
+  counter-increment: besoin;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "nom nom"
+    "hotes suppr";
+  align-items: start;
+  gap: .75rem;
+  padding: .9rem 0 1rem;
+  border-top: 1px solid var(--line-soft);
+}
+
+/* Numéro de la ligne (01, 02…) : décoratif, les libellés des champs disent déjà « du besoin 2 » */
+.besoin::before {
+  content: counter(besoin, decimal-leading-zero);
+  display: none;
+  grid-area: num;
+  padding-top: 2.45rem;
+  font-family: var(--mono);
+  font-size: .8rem;
+  color: var(--ink-3);
+}
+
+.besoin__nom { grid-area: nom; }
+.besoin__hotes { grid-area: hotes; }
+
+.besoin .field > label,
+.vlan__champs .field > label {
+  font-size: .82rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+  color: var(--ink-2);
+}
+
+.besoin .input,
+.vlan__champs .input {
+  margin-top: .3rem;
 }
 
 .besoins__limite:empty {
   display: none;
 }
 
-.besoins__liste {
-  display: grid;
-  gap: .75rem;
-  margin: 1rem 0;
-  padding: 0;
-  list-style: none;
+.besoins__limite {
+  margin-top: .7rem;
+  color: var(--ink-2);
 }
 
-/* Mobile : le nom sur toute la largeur, puis les hôtes et le bouton supprimer */
-.besoin {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-areas:
-    'nom   nom'
-    'hotes suppr';
-  gap: .75rem;
-  padding: .9rem;
-  background: rgba(255, 255, 255, .7);
-  border: 1px solid var(--line-soft);
-  border-radius: var(--r-sm);
-}
-
-.besoin__nom {
-  grid-area: nom;
-}
-
-.besoin__hotes {
-  grid-area: hotes;
-}
-
-.besoin__suppr {
-  grid-area: suppr;
-  /* Aligné sur le champ : on saute la hauteur du libellé (1 ligne) + l'espace */
-  margin-top: calc(.92rem * 1.55 + .4rem + 2px);
-}
-
-/* --- Générateur Cisco --- */
-
-/* Message affiché tant qu'aucun plan VLSM n'a été envoyé */
-.vide {
-  display: grid;
-  justify-items: start;
-  gap: 1rem;
-  padding: 1.25rem;
-  background: rgba(255, 255, 255, .7);
-  border: 1px dashed var(--line-strong);
-  border-radius: var(--r-sm);
-}
-
-/* Bouton « Envoyer vers le générateur Cisco » sous le plan VLSM */
-.suite {
-  display: grid;
-  justify-items: start;
-  gap: .5rem;
-}
-
-/* Groupe de réglages (fieldset sans cadre, comme la liste des besoins) */
-.groupe {
-  display: grid;
-  gap: .75rem;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  min-width: 0;
-}
-
-.groupe legend {
-  padding: 0;
-  margin-bottom: .4rem;
-  font-family: var(--display);
-  font-stretch: 82%;
-  font-size: 1.1rem;
-}
-
-/* Champs côte à côte : 1 colonne sur mobile, 2 à partir de 600px (voir Responsive) */
-.grille {
-  display: grid;
-  gap: 1rem;
-}
-
-/* Case à cocher + son libellé, cliquables sur au moins 44px de haut */
-.option {
-  display: flex;
+/* 10. BOUTONS --------------------------------------------------------------- */
+.btn {
+  display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: .6rem;
-  min-height: 44px;
-}
-
-.option label {
-  cursor: pointer;
-}
-
-.case {
-  width: 1.25rem;
-  height: 1.25rem;
-  margin: 0;
-  flex: none;
-  accent-color: var(--accent);
-  cursor: pointer;
-}
-
-/* Une ligne par sous-réseau du plan */
-.vlans {
-  display: grid;
-  gap: .75rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.vlan {
-  display: grid;
-  gap: .75rem;
-  padding: .9rem;
-  background: rgba(255, 255, 255, .7);
-  border: 1px solid var(--line-soft);
-  border-radius: var(--r-sm);
-}
-
-.vlan__titre {
-  font-family: var(--display);
-  font-stretch: 82%;
-  font-size: 1.05rem;
+  min-height: 3.1rem;
+  padding: .7rem 1.5rem;
+  border: 1.5px solid var(--ink);
+  border-radius: 999px;
+  font-size: .97rem;
   font-weight: 600;
-  color: var(--text);
-  overflow-wrap: anywhere;
+  line-height: 1.2;
+  text-align: center;
+  text-decoration: none;
+  transition: background-color .25s, color .25s, border-color .25s, transform .15s;
 }
 
-.vlan__info {
-  font-size: .82rem;
-  color: var(--text-dim);
+.btn:active {
+  transform: translateY(1px) scale(.985);
 }
 
-/* Mobile : numéro | nom, puis les ports sur toute la largeur */
-.vlan__champs {
-  display: grid;
-  grid-template-columns: minmax(5rem, 7rem) minmax(0, 1fr);
-  grid-template-areas:
-    'id    nom'
-    'ports ports';
-  gap: .75rem;
+.btn--primary {
+  background: var(--ink);
+  color: var(--paper);
 }
 
-.vlan__id { grid-area: id; }
-.vlan__nom { grid-area: nom; }
-.vlan__ports { grid-area: ports; }
-
-/* Sous-réseau décoché (classe posée par app.js) : ses champs sont désactivés et estompés */
-.vlan.is-off .vlan__champs {
-  opacity: .5;
+.btn--secondary {
+  color: var(--ink);
 }
 
-.input:disabled {
+.btn--sm {
+  min-height: 2.75rem;
+  padding: .5rem 1.1rem;
+  font-size: .9rem;
+}
+
+.btn .icon {
+  transition: transform .35s var(--ease);
+}
+
+.btn:disabled {
+  border-style: dashed;
+  border-color: var(--field-line);
+  color: var(--ink-3);
   cursor: not-allowed;
-  background: transparent;
 }
 
-/* Erreur qui ne concerne aucun champ (sous le bouton Générer) */
-.form-error {
-  margin-top: .75rem;
-}
-
-/* Avertissement à relire avant usage : bien visible, mais sans le rouge des erreurs */
-.avertissement {
-  display: flex;
-  align-items: flex-start;
-  gap: .75rem;
-  padding: 1rem 1.15rem;
-  color: var(--text);
-  background: #fdecc0;
-  border: 2px solid #b7791f;
-  border-radius: var(--r-sm);
-}
-
-.avertissement p {
-  color: var(--text);
-}
-
-.avertissement__icone {
-  width: 1.5rem;
-  height: 1.5rem;
-  margin-top: .1rem;
-  color: #8a5a12;
-}
-
-.avertissement code {
-  font-family: var(--mono);
-  font-size: .9em;
-  white-space: nowrap;
-}
-
-/* Bloc d'une configuration : titre + boutons, puis le texte */
-.config {
+/* Bouton rond (supprimer une ligne) : 44 px, la taille d'un doigt */
+.btn-icon {
+  grid-area: suppr;
   display: grid;
-  gap: .9rem;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  /* Aligné sur le champ voisin : hauteur du libellé (1.25rem) + son écart (.3rem) + demi-différence de hauteur */
+  margin-top: 1.675rem;
+  border: 1px solid var(--field-line);
+  border-radius: 50%;
+  color: var(--ink);
+  transition: background-color .25s, color .25s, border-color .25s, transform .15s;
 }
 
-.config__tete {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: .75rem 1rem;
+.btn-icon:active {
+  transform: scale(.94);
 }
 
-.config__tete h3 {
-  margin: 0;
+.btn-icon:disabled {
+  border-style: dashed;
+  color: var(--ink-3);
+  cursor: not-allowed;
 }
 
-/* Texte de la configuration : les longues lignes passent à la ligne (pas de défilement horizontal
-   sur mobile) ; au-delà de 32rem de haut, la zone défile. Copier et Télécharger prennent le texte exact. */
-.config__texte {
-  max-height: 32rem;
-  margin: 0;
-  padding: 1rem;
-  overflow: auto;
-  font-family: var(--mono);
-  font-size: .8rem;
-  line-height: 1.5;
-  color: var(--text);
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: var(--r-sm);
+/* Copier : l'icône devient une coche pendant 2 secondes (classe posée par app.js) */
+.icon-check {
+  display: none;
 }
 
-/* --- Résultats --- */
+.btn-copy.is-copied .icon-copy {
+  display: none;
+}
+
+.btn-copy.is-copied .icon-check {
+  display: block;
+  animation: coche .45s var(--ease);
+}
+
+.btn-copy.is-copied {
+  border-color: var(--ok);
+  color: var(--ok);
+}
+
+@keyframes coche {
+  from { transform: scale(.4) rotate(-20deg); opacity: 0; }
+}
+
+/* Survols : seulement sur les appareils qui ont un vrai pointeur (pas de survol « collé » au doigt) */
+@media (hover: hover) {
+  .brand:hover .brand__mono {
+    background: var(--ink);
+    color: var(--paper);
+  }
+
+  .header-link:hover,
+  .btn--secondary:hover:not(:disabled),
+  .pill:hover,
+  .btn-icon:hover:not(:disabled) {
+    background: var(--ink);
+    border-color: var(--ink);
+    color: var(--paper);
+  }
+
+  .header-link:hover .icon {
+    transform: translate(2px, -2px);
+  }
+
+  .btn--primary:hover {
+    background: var(--wire-deep);
+    border-color: var(--wire-deep);
+  }
+
+  /* La flèche avance un peu : « envoyer vers… » */
+  .btn--primary:hover .icon {
+    transform: translateX(3px);
+  }
+
+  .btn-copy.is-copied:hover:not(:disabled) {
+    background: var(--ok);
+    border-color: var(--ok);
+    color: var(--sheet);
+  }
+
+  .tab:hover {
+    color: var(--ink);
+    --port-fill: var(--wire);
+  }
+
+  .tab:hover .tab__port {
+    transform: translateY(-2px);
+  }
+
+  .input:hover:not(:disabled):not(:focus-visible):not([aria-invalid="true"]) {
+    border-color: var(--ink);
+  }
+
+  .site-footer a:hover {
+    color: var(--wire-deep);
+  }
+}
+
+/* 11. RÉSULTATS (COMMUN AUX TROIS OUTILS) -----------------------------------
+   Un filet à l'encre ouvre le résultat ; ensuite, chaque bloc est séparé par un trait fin. */
 .results {
   display: grid;
-  gap: 1.25rem;
-  margin-top: 2.25rem;
+  grid-template-columns: minmax(0, 1fr);
+  gap: clamp(1.75rem, 3.5vw, 2.75rem);
+  margin-top: clamp(2.5rem, 5vw, 4rem);
+  padding-top: clamp(1.25rem, 2.5vw, 2rem);
+  border-top: 1px solid var(--ink);
 }
 
 .results-head {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
-  gap: .75rem 1rem;
+  gap: 1.1rem 2rem;
 }
 
 .results-head h2 {
-  font-size: 1.5rem;
+  font-family: var(--serif);
+  font-size: clamp(2.3rem, 5.4vw, 4rem);
+  line-height: .95;
+  letter-spacing: -.035em;
 }
 
-/* Rappel de l'adresse calculée sous le titre (utile aussi à l'impression) */
+/* Le rappel de ce qui a été calculé (adresse, réseau) : en mono, précédé d'un petit tronçon de câble */
 .results-sub {
-  margin-top: .2rem;
-  font-size: .88rem;
-  color: var(--text-dim);
+  display: flex;
+  align-items: baseline;
+  gap: .65rem;
+  margin-top: .8rem;
+  font-size: .92rem;
+  line-height: 1.45;
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+
+.results-sub:empty {
+  display: none;
+}
+
+.results-sub::before {
+  content: '';
+  flex-shrink: 0;
+  width: 1.1rem;
+  height: 3px;
+  border-radius: 3px;
+  background: var(--wire);
+  transform: translateY(-.28em);
 }
 
 .actions {
@@ -790,189 +1237,193 @@ legend {
   gap: .5rem;
 }
 
-/* Cartes (comme les cartes projets du portfolio) */
-.card {
-  padding: clamp(1.1rem, 3vw, 1.6rem);
-  background: var(--white);
-  border-radius: var(--r-md);
-  box-shadow:
-    0 20px 45px -32px rgba(29, 90, 102, .3),
-    0 2px 8px -3px rgba(20, 24, 29, .06);
-}
-
-.card h3 {
-  margin-bottom: .75rem;
-  font-size: 1.1rem;
-}
-
-.card--table {
-  padding-block: .4rem;
-}
-
-/* Chiffres clés : 3 cases séparées par 1px (le fond de la grille fait office de trait) */
+/* Chiffres clés : de grands chiffres serif sous un filet, séparés par des traits (comme les chiffres du portfolio) */
 .stats {
+  container-type: inline-size;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1px;
-  margin: 0;
-  overflow: hidden;
-  background: var(--line-soft);
-  border-radius: var(--r-md);
-  box-shadow:
-    0 20px 45px -32px rgba(29, 90, 102, .3),
-    0 2px 8px -3px rgba(20, 24, 29, .06);
+  border-top: 1px solid var(--ink);
 }
 
+/* Dans le HTML le libellé (dt) précède la valeur (dd) ; à l'écran la valeur passe au-dessus */
 .stat {
   display: flex;
-  flex-direction: column-reverse; /* dans le HTML : libellé puis valeur ; à l'écran : valeur au-dessus */
-  gap: .2rem;
+  flex-direction: column-reverse;
+  justify-content: flex-end;
+  gap: .35rem;
   min-width: 0;
-  padding: 1rem clamp(.75rem, 2.5vw, 1.4rem);
-  background: var(--white);
+  padding: .85rem .9rem 0 0;
+}
+
+.stat + .stat {
+  padding-left: 1rem;
+  border-left: 1px solid var(--line);
 }
 
 .stat__value {
-  margin: 0;
-  font-family: var(--display);
-  font-stretch: 82%;
-  font-weight: 600;
-  font-size: clamp(1.2rem, 4.2vw, 1.75rem);
-  line-height: 1.15;
-  color: var(--accent-deep);
-  font-variant-numeric: tabular-nums;
-  overflow-wrap: anywhere;
+  font-family: var(--serif);
+  font-weight: 350;
+  /* cqi : la taille suit la largeur du bloc, « 16 777 214 » tient toujours dans sa colonne */
+  font-size: clamp(1.7rem, 6.1cqi, 4.4rem);
+  line-height: .95;
+  letter-spacing: -.04em;
+  font-variant-numeric: lining-nums tabular-nums;
+  color: var(--ink);
+  white-space: nowrap;
 }
 
 .stat__label {
-  font-size: .74rem;
-  color: var(--text-faint);
+  font-size: .86rem;
+  line-height: 1.35;
+  color: var(--ink-2);
 }
 
-/* IP en binaire */
+/* Blocs de résultat : titre en italique, contenu dessous (ou à côté sur grand écran) */
+.card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: .9rem 2.5rem;
+  min-width: 0;
+  padding-top: clamp(1.1rem, 2vw, 1.5rem);
+  border-top: 1px solid var(--line);
+}
+
+.card > h3 {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: clamp(1.45rem, 2.4vw, 1.9rem);
+  line-height: 1.1;
+  letter-spacing: -.015em;
+}
+
+/* IP en binaire : les bits réseau sont soulignés par le câble, les bits hôte par un trait gris */
 .binary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .7rem 1.1rem;
   font-family: var(--mono);
-  font-size: clamp(.82rem, 2.6vw, 1.05rem);
-  line-height: 2;
-  letter-spacing: .04em;
-  color: var(--text-faint);
+  font-size: clamp(1.05rem, 2.5vw, 1.6rem);
+  line-height: 1.3;
+  letter-spacing: .06em;
+  color: var(--ink);
 }
 
 .octet {
-  white-space: nowrap; /* un octet n'est jamais coupé en deux */
+  display: inline-flex;
+  white-space: nowrap;
 }
 
-.bits-reseau {
-  padding: .1em .12em;
-  font-weight: 700;
-  color: var(--accent-deep);
-  background: var(--accent-soft);
-  border-radius: 4px;
+.bits-reseau,
+.bits-hote {
+  padding-bottom: .3rem;
+  border-bottom: 3px solid var(--wire);
 }
 
 .bits-hote {
-  padding: .1em .12em;
-  color: var(--text-faint);
+  border-bottom-color: var(--line);
+  color: var(--ink-3);
 }
 
 .legend {
   display: flex;
   flex-wrap: wrap;
-  gap: .4rem 1.25rem;
-  margin-top: .75rem;
-  font-size: .82rem;
+  gap: .4rem 1.5rem;
+  margin-top: .2rem;
+  font-size: .88rem;
+  color: var(--ink-2);
 }
 
 .legend__item {
   display: inline-flex;
   align-items: center;
-  gap: .45rem;
+  gap: .55rem;
 }
 
 .swatch {
-  width: .9rem;
-  height: .9rem;
+  width: 1.1rem;
+  height: 3px;
   border-radius: 3px;
-  border: 1px solid var(--line);
 }
 
-.swatch--reseau {
-  background: var(--accent-soft);
-  border-color: var(--line-strong);
-}
+.swatch--reseau { background: var(--wire); }
+.swatch--hote { background: var(--field-line); }
 
-.swatch--hote {
-  background: var(--white);
-}
-
-/* Tableaux */
+/* Tableaux : traits fins, en-têtes discrets, valeurs réseau en mono */
 .data-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: .92rem;
+  font-size: .94rem;
+  line-height: 1.45;
+}
+
+.data-table th,
+.data-table td {
+  padding: .7rem 1rem .7rem 0;
+  border-bottom: 1px solid var(--line-soft);
+  text-align: left;
+  vertical-align: top;
+}
+
+.data-table th:last-child,
+.data-table td:last-child {
+  padding-right: 0;
 }
 
 .data-table thead th {
-  padding: .85rem .75rem;
-  font-family: var(--mono);
-  font-size: .7rem;
+  padding-top: 0;
+  border-bottom: 1px solid var(--ink);
+  font-size: .82rem;
   font-weight: 500;
-  letter-spacing: .06em;
-  text-transform: uppercase;
-  text-align: left;
-  color: var(--text-faint);
-  border-bottom: 1px solid var(--line);
+  color: var(--ink-2);
+  vertical-align: bottom;
 }
 
-.data-table td,
 .data-table tbody th {
-  padding: .8rem .75rem;
-  text-align: left;
-  vertical-align: top;
-  border-bottom: 1px solid var(--line-soft);
+  font-weight: 600;
+  color: var(--ink);
 }
 
 .data-table tbody tr:last-child > * {
   border-bottom: 0;
 }
 
-/* Tableau « clé / valeur » de l'analyse : libellé à gauche */
-.table-kv tbody th {
-  width: 45%;
-  font-weight: 500;
-  color: var(--text-dim);
-}
-
-.mono {
-  font-family: var(--mono);
+.data-table .mono {
   font-size: .88rem;
+  color: var(--ink);
 }
 
-.num {
-  font-variant-numeric: tabular-nums;
+.data-table .num {
+  color: var(--ink);
 }
 
-.plage__ip {
-  white-space: nowrap;
+/* Tableau « champ : valeur » de l'analyse d'adresse */
+.table-kv tbody th {
+  width: 46%;
+  font-weight: 500;
+  color: var(--ink-2);
 }
 
-/* Barre de répartition VLSM (SVG) */
+.table-kv td {
+  overflow-wrap: anywhere;
+}
+
+/* 12. PLAN VLSM -------------------------------------------------------------
+   La barre de répartition : le réseau de départ vu comme un câble découpé en tronçons. */
 .barre {
-  display: block;
   width: 100%;
-  height: 40px;
+  height: 46px;
 }
 
-/* Les sous-réseaux se succèdent dans 4 teintes de violet ; « fill » colore un rectangle SVG,
-   « background » colore la pastille de la légende (même classe pour les deux). */
-.seg-0 { fill: var(--accent-deep); background: var(--accent-deep); }
-.seg-1 { fill: #3E7F8C; background: #3E7F8C; }
-.seg-2 { fill: #74A9B3; background: #74A9B3; }
-.seg-3 { fill: #B5D3D8; background: #B5D3D8; }
+/* « fill » colore un rectangle SVG, « background » la pastille de la légende (même classe pour les deux).
+   Quatre teintes qui alternent : deux tronçons voisins ne se confondent jamais (3:1 au moins sur la feuille). */
+.seg-0 { fill: var(--ink); background: var(--ink); }
+.seg-1 { fill: var(--wire); background: var(--wire); }
+.seg-2 { fill: var(--ink-3); background: var(--ink-3); }
+.seg-3 { fill: #8E928B; background: #8E928B; }
 
-/* Un trait clair sépare deux sous-réseaux voisins */
+/* Un filet clair sépare les tronçons */
 .segment {
-  stroke: var(--white);
+  stroke: var(--sheet);
   stroke-width: 2;
 }
 
@@ -982,55 +1433,72 @@ legend {
 }
 
 .hachures__fond {
-  fill: var(--white);
+  fill: var(--sheet);
 }
 
 .hachures__trait {
-  fill: var(--line-strong);
+  fill: rgba(21, 24, 27, .3);
 }
 
 .legende-barre {
   display: flex;
   flex-wrap: wrap;
-  gap: .4rem 1.25rem;
-  margin: .9rem 0 0;
-  padding: 0;
-  list-style: none;
+  gap: .45rem 1.5rem;
+  font-family: var(--mono);
   font-size: .82rem;
-  color: var(--text-dim);
+  line-height: 1.45;
+  color: var(--ink-2);
 }
 
 .legende-barre li {
   display: inline-flex;
   align-items: center;
-  gap: .45rem;
+  gap: .55rem;
 }
 
 .pastille {
-  width: .9rem;
-  height: .9rem;
-  flex: none;
-  border-radius: 3px;
+  flex-shrink: 0;
+  width: .8rem;
+  height: .8rem;
+  border-radius: 2px;
 }
 
-/* Pastille hachurée pour l'espace libre (dégradé répété = rayures obliques) */
 .pastille--libre {
-  border: 1px solid var(--line-strong);
-  background: repeating-linear-gradient(45deg, var(--line-strong) 0 2px, var(--white) 2px 5px);
+  border: 1px solid var(--field-line);
+  background: repeating-linear-gradient(45deg, rgba(21, 24, 27, .3) 0 1.5px, var(--sheet) 1.5px 4px);
 }
 
-/* Espace libre */
+/* Zone du tableau d'adressage : filet de sécurité, défilement interne plutôt que débordement de la page */
+.table-zone {
+  container-type: inline-size;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+/* Une adresse ne se coupe jamais en deux ; la plage se replie proprement au tiret */
+.plage__ip {
+  white-space: nowrap;
+}
+
+.table-cards td.mono,
+.table-cards td.num {
+  white-space: nowrap;
+}
+
+.table-cards td.mono:has(.plage__ip) {
+  white-space: normal;
+}
+
+/* Espace libre : la phrase, puis les blocs réutilisables en étiquettes pointillées (pointillé = non attribué) */
 .free {
-  font-size: .95rem;
+  max-width: 60ch;
+  color: var(--ink-2);
 }
 
 .blocs {
   display: flex;
   flex-wrap: wrap;
   gap: .5rem;
-  margin: .9rem 0 0;
-  padding: 0;
-  list-style: none;
 }
 
 .blocs:empty {
@@ -1038,98 +1506,577 @@ legend {
 }
 
 .blocs li {
-  padding: .35rem .8rem;
+  padding: .3rem .75rem;
+  border: 1px dashed var(--field-line);
+  border-radius: var(--r-sm);
   font-family: var(--mono);
-  font-size: .85rem;
-  color: var(--accent-deep);
-  background: rgba(20, 24, 29, .055);
-  border: 1px solid var(--line);
-  border-radius: 999px;
+  font-size: .88rem;
+  color: var(--ink);
 }
 
-/* ========== 6. Responsive ========== */
+/* La suite logique : envoyer le plan au générateur Cisco */
+.suite {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .9rem 1.5rem;
+  padding-top: clamp(1.25rem, 2.5vw, 2rem);
+  border-top: 1px solid var(--ink);
+}
 
-/* Sous 760px : flou réduit (plus léger pour les téléphones) */
-@media (max-width: 759.98px) {
-  .panel {
-    -webkit-backdrop-filter: blur(14px) saturate(170%);
-    backdrop-filter: blur(14px) saturate(170%);
+.suite .hint {
+  margin-top: 0;
+  max-width: 44ch;
+}
+
+/* 13. GÉNÉRATEUR CISCO ------------------------------------------------------ */
+/* Aucun plan reçu : un port débranché (voyant éteint) et l'explication */
+.vide {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1.1rem;
+  max-width: 44rem;
+  padding: clamp(1.25rem, 3vw, 2rem);
+  border: 1px dashed var(--field-line);
+  border-radius: var(--r-md);
+}
+
+.vide__port {
+  width: 44px;
+  height: auto;
+}
+
+.vide p {
+  font-family: var(--serif);
+  font-size: clamp(1.2rem, 2.2vw, 1.5rem);
+  line-height: 1.3;
+  letter-spacing: -.01em;
+  color: var(--ink);
+}
+
+/* Rappel du plan reçu, en tête du formulaire */
+#cisco-plan {
+  margin-top: 0;
+  color: var(--ink);
+}
+
+/* Une ligne par sous-réseau du plan */
+.vlans {
+  margin-top: 1rem;
+}
+
+.vlan {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: .9rem 2rem;
+  padding: 1.1rem 0 1.25rem;
+  border-top: 1px solid var(--line-soft);
+}
+
+.vlan:last-child {
+  padding-bottom: .25rem;
+}
+
+.vlan__titre {
+  font-family: var(--serif);
+  font-size: 1.45rem;
+  line-height: 1.15;
+  letter-spacing: -.02em;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.vlan__info {
+  margin-top: .3rem;
+  font-size: .84rem;
+  line-height: 1.45;
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+
+.vlan__tete .option {
+  margin-top: .45rem;
+}
+
+.vlan__champs {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: .75rem;
+  transition: opacity .3s;
+}
+
+/* Sous-réseau décoché : ses champs sont désactivés et s'estompent */
+.vlan.is-off .vlan__champs {
+  opacity: .55;
+}
+
+.vlan.is-off .vlan__titre {
+  color: var(--ink-2);
+}
+
+/* Avertissement de sécurité : un liseré de câble, pas de fond criard */
+.avertissement {
+  display: flex;
+  align-items: flex-start;
+  gap: .9rem;
+  max-width: 62rem;
+  padding: 1rem 1.25rem;
+  border-left: 3px solid var(--wire);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  background: var(--paper);
+}
+
+.avertissement p {
+  color: var(--ink);
+}
+
+.avertissement__icone {
+  width: 1.3rem;
+  height: 1.3rem;
+  margin-top: .15rem;
+  color: var(--wire-deep);
+}
+
+.avertissement code {
+  padding: .08rem .35rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--sheet);
+  white-space: nowrap;
+}
+
+/* 14. CONFIGURATIONS : LE SEUL PANNEAU SOMBRE -------------------------------
+   Comme le bloc Contact du portfolio : l'encre devient le fond, le papier devient le texte.
+   Ce n'est pas un faux terminal : rien ne clignote, on lit et on copie. */
+.config {
+  gap: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-md);
+  background: var(--ink);
+  color: var(--paper);
+  box-shadow: 0 30px 60px -34px rgba(21, 24, 27, .6);
+  overflow: hidden;
+  /* Le port du titre, redessiné pour un fond sombre : voyant vert vif = configuration prête */
+  --port-house: #23282C;
+  --port-stroke: rgba(236, 237, 232, .55);
+  --port-fill: #0B0D0F;
+  --port-led: var(--led-bright);
+}
+
+.config__tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .9rem 1rem;
+  padding: 1.1rem clamp(1rem, 2.5vw, 1.6rem);
+  border-bottom: 1px solid var(--paper-line);
+}
+
+.config__port {
+  width: 34px;
+  height: auto;
+  flex-shrink: 0;
+}
+
+.config__tete h3 {
+  flex: 1 1 10rem;
+  min-width: 0;
+  font-family: var(--serif);
+  font-size: clamp(1.4rem, 2.4vw, 1.75rem);
+  line-height: 1.1;
+  letter-spacing: -.02em;
+  color: var(--paper);
+  overflow-wrap: anywhere;
+}
+
+.config .btn--secondary {
+  border-color: rgba(236, 237, 232, .5);
+  color: var(--paper);
+}
+
+.config .btn-copy.is-copied {
+  border-color: var(--led-bright);
+  color: var(--led-bright);
+}
+
+.config :focus-visible {
+  outline-color: var(--wire);
+}
+
+@media (hover: hover) {
+  .config .btn--secondary:hover:not(:disabled) {
+    background: var(--paper);
+    border-color: var(--paper);
+    color: var(--ink);
+  }
+
+  .config .btn-copy.is-copied:hover:not(:disabled) {
+    background: var(--led-bright);
+    border-color: var(--led-bright);
+    color: var(--ink);
   }
 }
 
-/* Sous 860px : chaque ligne du tableau VLSM devient une carte (pas de défilement horizontal).
-   « screen » : seulement à l'écran. Une feuille A4 fait moins de 860px de large, et on veut
-   garder un vrai tableau à l'impression. */
-@media screen and (max-width: 859.98px) {
-  .table-cards,
-  .table-cards tbody,
-  .table-cards tr,
-  .table-cards td,
-  .table-cards tbody th {
+/* Le texte de la configuration : mono, interligne large, lignes jamais repliées
+   (une commande = une ligne). La zone défile sur elle-même, pas la page. */
+.config__texte {
+  max-height: min(34rem, 72vh);
+  padding: 1.15rem clamp(1rem, 2.5vw, 1.6rem) 1.4rem;
+  overflow: auto;
+  font-family: var(--mono);
+  font-size: .86rem;
+  line-height: 1.7;
+  color: var(--paper);
+  white-space: pre;
+  tab-size: 2;
+  scrollbar-color: rgba(236, 237, 232, .45) transparent;
+}
+
+.config__texte::selection {
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.config__texte:focus-visible {
+  outline-offset: -4px;
+  border-radius: var(--r-sm);
+}
+
+/* 15. PIED DE PAGE ET PAGE 404 ---------------------------------------------- */
+.site-footer {
+  padding: 1.25rem 0 2.5rem;
+}
+
+.site-footer__inner {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: .25rem 2rem;
+  padding-top: 1.1rem;
+}
+
+/* Le filet du pied de page s'arrête aux marges du contenu, comme tous les autres */
+.site-footer__inner::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: var(--gutter);
+  right: var(--gutter);
+  height: 1px;
+  background: var(--line);
+}
+
+.site-footer p {
+  font-size: .92rem;
+  color: var(--ink-2);
+}
+
+.site-footer__liens {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+}
+
+.site-footer a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-weight: 600;
+  color: var(--ink);
+  text-underline-offset: .25em;
+  transition: color .2s;
+}
+
+/* Page 404 : pas de prise, le fil n'est qu'un trait sous le titre ; puis une petite feuille, un message, un bouton */
+.hero--court .hero__haut {
+  display: flex;
+  padding-right: 0;
+}
+
+.hero--court .fil {
+  top: auto;
+  right: 0;
+  height: 0;
+  max-width: 28rem;
+  border-width: 0 0 5px;
+  border-radius: 0;
+  animation: none;
+}
+
+/* Page 404 (suite) */
+.panel--court {
+  max-width: 40rem;
+  margin-bottom: clamp(3rem, 7vw, 6rem);
+  padding: var(--sheet-pad);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-md);
+  background: var(--sheet);
+  box-shadow: var(--shadow-sheet);
+}
+
+.panel--court p {
+  font-size: 1.05rem;
+  color: var(--ink);
+}
+
+.panel__action {
+  margin-top: 1.4rem;
+}
+
+/* 16. APPARITIONS -----------------------------------------------------------
+   Discrètes et courtes, en CSS seulement. Elles se jouent quand l'élément devient
+   visible (app.js retire l'attribut hidden) : aucun script d'animation à charger. */
+@media (prefers-reduced-motion: no-preference) {
+  /* Ouverture : les deux lignes du titre montent, puis le câble se déroule depuis la prise */
+  .ligne__in {
+    animation: monte .95s var(--ease) both;
+  }
+
+  .ligne + .ligne .ligne__in {
+    animation-delay: .09s;
+  }
+
+  .eyebrow,
+  .etat,
+  .hero__bas,
+  .panel {
+    animation: apparait .8s var(--ease) both;
+  }
+
+  .hero__bas { animation-delay: .35s; }
+  .panel { animation-delay: .5s; }
+
+  /* clip-path dévoile le câble dans l'ordre du tracé : d'abord la descente, puis le virage vers la gauche */
+  .fil {
+    animation: deroule 1.5s .3s cubic-bezier(.6, 0, .25, 1) both;
+  }
+
+  .fil__bout {
+    animation: pose .5s 1.7s cubic-bezier(.34, 1.56, .64, 1) both;
+  }
+
+  /* Changement d'onglet et arrivée d'un résultat */
+  .tabpanel {
+    animation: apparait .55s var(--ease);
+  }
+
+  .results {
+    animation: apparait .7s var(--ease);
+  }
+
+  /* Les chiffres clés arrivent l'un après l'autre */
+  .results .stat {
+    animation: apparait .7s var(--ease) both;
+  }
+
+  .results .stat:nth-child(2) { animation-delay: .07s; }
+  .results .stat:nth-child(3) { animation-delay: .14s; }
+
+  /* Les tronçons de la barre VLSM se déploient de gauche à droite (rejoué à chaque calcul : app.js les recrée) */
+  .segment {
+    transform-box: fill-box;
+    transform-origin: left center;
+    animation: troncon .8s var(--ease) both;
+  }
+
+  .segment:nth-child(2) { animation-delay: .06s; }
+  .segment:nth-child(3) { animation-delay: .12s; }
+  .segment:nth-child(4) { animation-delay: .18s; }
+  .segment:nth-child(n+5) { animation-delay: .24s; }
+}
+
+@keyframes monte {
+  from { transform: translateY(112%); }
+}
+
+@keyframes apparait {
+  from { opacity: 0; transform: translateY(14px); }
+}
+
+@keyframes deroule {
+  0% { clip-path: inset(-24px -24px 100% calc(100% - 40px)); }
+  45% { clip-path: inset(-24px -24px -24px calc(100% - 40px)); }
+  100% { clip-path: inset(-24px -24px -24px -24px); }
+}
+
+@keyframes pose {
+  from { transform: scale(0); }
+}
+
+@keyframes troncon {
+  from { transform: scaleX(0); }
+}
+
+/* 17. RESPONSIVE ------------------------------------------------------------
+   La feuille est pensée d'abord pour un téléphone de 320 px ; chaque palier ajoute de la place. */
+
+/* Tableau d'adressage étroit : chaque sous-réseau devient une fiche (aucune donnée masquée,
+   aucun défilement horizontal). On mesure la largeur de la zone du tableau (requête de conteneur),
+   pas celle de l'écran. « screen » : à l'impression, on garde un vrai tableau. */
+@media screen {
+  @container (max-width: 61.99rem) {
+    .table-cards,
+    .table-cards tbody,
+    .table-cards tr,
+    .table-cards td,
+    .table-cards tbody th {
+      display: block;
+    }
+
+    /* Les en-têtes restent lus par les lecteurs d'écran, mais sont cachés à l'écran */
+    .table-cards thead {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+    }
+
+    .table-cards tbody tr {
+      padding: 1rem 0 .9rem;
+      border-top: 1px solid var(--ink);
+    }
+
+    /* Nom du sous-réseau = titre de la fiche */
+    .table-cards tbody th {
+      padding: 0 0 .5rem;
+      border: 0;
+      font-family: var(--serif);
+      font-size: 1.45rem;
+      font-weight: 400;
+      line-height: 1.15;
+      letter-spacing: -.02em;
+      overflow-wrap: anywhere;
+    }
+
+    /* Chaque cellule : libellé (repris de data-label) à gauche, valeur à droite */
+    .table-cards td {
+      display: grid;
+      grid-template-columns: minmax(5.5rem, 34%) minmax(0, 1fr);
+      gap: .75rem;
+      padding: .5rem 0;
+      border-bottom: 1px solid var(--line-soft);
+    }
+
+    /* En fiche, une valeur trop longue pour l'écran passe à la ligne plutôt que de déborder */
+    .table-cards td.mono,
+    .table-cards td.num {
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+
+    .table-cards td::before {
+      content: attr(data-label);
+      font-family: var(--sans);
+      font-size: .84rem;
+      color: var(--ink-2);
+    }
+
+    .table-cards tbody tr td:last-child {
+      border-bottom: 0;
+    }
+  }
+
+  /* Zone moyenne (tablette) : deux fiches par rangée */
+  @container (min-width: 38rem) and (max-width: 61.99rem) {
+    .table-cards tbody {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0 2.5rem;
+    }
+  }
+}
+
+/* Chiffres clés sur zone étroite : une ligne par chiffre, libellé à gauche, valeur à droite */
+@container (max-width: 27rem) {
+  .stat {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: .7rem 0;
+    border-bottom: 1px solid var(--line-soft);
+  }
+
+  .stat + .stat {
+    padding-left: 0;
+    border-left: 0;
+  }
+
+  .stat:last-child {
+    border-bottom: 0;
+    padding-bottom: 0;
+  }
+
+  .stat__value {
+    font-size: 2rem;
+  }
+}
+
+/* Très petits écrans (moins de 400px) : la barre d'en-tête se resserre pour tout garder sur une ligne */
+@media (max-width: 399.98px) {
+  .site-header__inner {
+    gap: .5rem;
+  }
+
+  .brand {
+    gap: .5rem;
+    font-size: .9rem;
+  }
+
+  .brand__mono {
+    width: 2rem;
+    height: 2rem;
+    font-size: .88rem;
+  }
+
+  .header-link {
+    gap: .3rem;
+    padding: 0 .75rem 0 .85rem;
+    font-size: .82rem;
+  }
+}
+
+/* À partir de 480px : une ligne de besoin = numéro | nom | hôtes | supprimer */
+@media (min-width: 480px) {
+  .besoin {
+    grid-template-columns: 1.6rem minmax(0, 1fr) minmax(6rem, 9rem) auto;
+    grid-template-areas: "num nom hotes suppr";
+  }
+
+  .besoin::before {
     display: block;
   }
 
-  /* Les en-têtes restent lus par les lecteurs d'écran, mais sont cachés à l'écran */
-  .table-cards thead {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
+  .tab {
+    grid-template-areas:
+      "ico num"
+      "ico nom";
+    align-content: center;
+    gap: .15rem .8rem;
+    padding: .8rem 1rem .9rem .25rem;
   }
 
-  .table-cards tbody tr {
-    padding: .5rem 0 .75rem;
-    border-bottom: 1px solid var(--line);
+  .tab + .tab {
+    padding-left: 1rem;
   }
 
-  .table-cards tbody tr:last-child {
-    border-bottom: 0;
+  .tab__port {
+    width: 34px;
   }
 
-  /* Nom du sous-réseau = titre de la carte */
-  .table-cards tbody th {
-    padding: .5rem 0;
-    border: 0;
-    font-family: var(--display);
-  font-stretch: 82%;
-    font-size: 1.1rem;
-    font-weight: 600;
+  .tab__num {
+    align-self: end;
   }
 
-  /* Chaque cellule : libellé (repris de data-label) à gauche, valeur à droite */
-  .table-cards td {
-    display: grid;
-    grid-template-columns: minmax(7rem, 40%) minmax(0, 1fr);
-    gap: .75rem;
-    padding: .45rem 0;
-  }
-
-  .table-cards td::before {
-    content: attr(data-label);
-    padding-top: .15rem;
-    font-family: var(--mono);
-    font-size: .7rem;
-    letter-spacing: .06em;
-    text-transform: uppercase;
-    color: var(--text-faint);
-  }
-
-  .table-cards tbody tr td:last-child {
-    border-bottom: 0;
-  }
-}
-
-/* À partir de 480px : une ligne de besoin = nom | hôtes | supprimer */
-@media (min-width: 480px) {
-  .tabs {
-    display: inline-flex;
-    max-width: 100%;
-  }
-
-  .besoin {
-    grid-template-columns: minmax(0, 1fr) minmax(6rem, 9rem) auto;
-    grid-template-areas: 'nom hotes suppr';
+  .tab__nom {
+    align-self: start;
+    font-size: .95rem;
   }
 }
 
@@ -1146,31 +2093,86 @@ legend {
 
   .vlan__champs {
     grid-template-columns: minmax(5rem, 7rem) minmax(0, 1fr) minmax(0, 1fr);
-    grid-template-areas: 'id nom ports';
+  }
+
+  .config__texte {
+    font-size: .9rem;
   }
 }
 
-/* À partir de 640px : les intitulés des onglets tiennent sur une ligne */
-@media (min-width: 640px) {
-  .tab {
-    padding: .6rem 1.15rem;
-    font-size: .92rem;
-    white-space: nowrap;
+/* À partir de 760px : le nom de l'outil rejoint la barre d'en-tête */
+@media (min-width: 760px) {
+  .site-header__outil {
+    display: flex;
   }
 }
 
-/* À partir de 860px : un peu plus d'air */
+/* À partir de 860px : la prise passe à droite du titre, le texte du hero sur deux colonnes */
 @media (min-width: 860px) {
-  .besoins__liste {
-    max-width: 44rem;
+  .hero__haut {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) var(--etat-w);
+    grid-template-areas:
+      "sur etat"
+      "titre etat";
+    column-gap: 2rem;
+    padding-right: 0;
   }
 
-  .form > .field {
-    max-width: 32rem;
+  .eyebrow { grid-area: sur; }
+  .hero h1 { grid-area: titre; }
+
+  .etat {
+    grid-area: etat;
+    flex-direction: row;
+    justify-content: flex-start;
+    margin: 0;
+  }
+
+  /* Le câble reste centré sous la prise, qui est maintenant au début de la colonne de droite */
+  .fil {
+    right: calc(var(--etat-w) - (var(--jack-w) + 5px) / 2);
+    left: -.75rem;
+    bottom: -1.9rem;
+    border-bottom-right-radius: 38px;
+  }
+
+  .hero__bas {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 30rem);
+    align-items: start;
+  }
+
+  .tab {
+    min-height: 5.25rem;
+  }
+
+  .tab__nom {
+    font-size: 1.02rem;
   }
 }
 
-/* ========== 7. Impression : un plan d'adressage lisible en noir et blanc ========== */
+/* À partir de 1000px : titre du bloc à gauche, contenu à droite (comme les compétences du portfolio) ;
+   ligne de VLAN = sous-réseau à gauche, champs à droite */
+@media (min-width: 1000px) {
+  .card:not(.card--large):not(.config) {
+    grid-template-columns: 15rem minmax(0, 1fr);
+  }
+
+  .card:not(.card--large):not(.config) > h3 {
+    grid-column: 1;
+  }
+
+  .card:not(.card--large):not(.config) > :not(h3) {
+    grid-column: 2;
+  }
+
+  .vlan {
+    grid-template-columns: 17rem minmax(0, 1fr);
+    align-items: start;
+  }
+}
+
+/* 18. IMPRESSION : un plan d'adressage lisible en noir et blanc ---------------- */
 @media print {
   /* Paysage : les 8 colonnes du plan VLSM tiennent sur la largeur */
   @page {
@@ -1179,104 +2181,148 @@ legend {
   }
 
   body {
+    display: block;
     background: #fff;
     color: #000;
     font-size: 10pt;
   }
 
   /* Tout ce qui ne sert qu'à l'écran disparaît : en-tête, pied de page, onglets,
-     formulaires, boutons, exemples, messages. Seuls le titre et les résultats restent. */
+     formulaires, boutons, exemples, décor. Seuls le titre et les résultats restent. */
   .site-header,
   .site-footer,
   .skip-link,
-  .lead,
+  .hero__bas,
+  .etat,
+  .fil,
+  .panel__label,
   .tabs,
   .exemples,
   .form,
   .actions,
   .suite,
   .vide,
-  .noscript {
+  .noscript,
+  .config__port {
     display: none !important;
   }
 
-  /* Configuration imprimée en entier, sans zone défilante */
-  .config__texte {
-    max-height: none;
-    overflow: visible;
-    font-size: 8pt;
-    background: none;
-    border: 0;
-    padding: 0;
-  }
-
-  .avertissement {
-    background: none;
-    border: 1.5px solid #000;
-  }
-
   .wrap {
-    width: 100%;
+    max-width: none;
+    padding: 0;
   }
 
   .hero {
     padding: 0 0 .4cm;
   }
 
+  .hero__haut {
+    display: block;
+    padding: 0;
+  }
+
   .hero h1 {
-    font-size: 16pt;
+    margin: 0;
+    font-size: 18pt;
+    letter-spacing: 0;
+  }
+
+  .ligne {
+    display: inline;
+    overflow: visible;
+    padding: 0;
+    margin: 0;
+  }
+
+  .ligne__in {
+    display: inline;
   }
 
   .eyebrow {
     margin-bottom: .1cm;
   }
 
-  /* Plus d'effet verre, d'ombres ni de fonds colorés */
+  /* Plus d'ombres ni de fonds */
   .panel,
+  .tabpanel,
   .card,
-  .stats {
+  .config {
     margin: 0;
     padding: 0;
     background: none;
     border: 0;
     border-radius: 0;
     box-shadow: none;
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
   }
 
   .results {
     margin-top: 0;
-    gap: .4cm;
+    padding-top: 0;
+    border: 0;
+    gap: .45cm;
   }
 
-  h1, h2, h3, p, th, td, dt, dd,
+  .results-head h2 {
+    font-size: 15pt;
+    letter-spacing: 0;
+  }
+
+  h1, h2, h3, p, th, td, dt, dd, li, pre,
   .stat__value,
-  .stat__label {
+  .stat__label,
+  .data-table .mono,
+  .bits-hote,
+  .config__tete h3,
+  .config__texte {
     color: #000 !important;
+  }
+
+  .card > h3,
+  .config__tete h3 {
+    font-size: 12pt;
   }
 
   /* Chiffres clés : 3 cases encadrées */
   .stats {
-    gap: 0;
     border: 1px solid #000;
   }
 
   .stat {
     padding: .2cm .3cm;
-    background: none;
-    border-right: 1px solid #000;
   }
 
-  .stat:last-child {
-    border-right: 0;
+  .stat + .stat {
+    border-left: 1px solid #000;
   }
 
   .stat__value {
-    font-size: 14pt;
+    font-size: 15pt;
+    letter-spacing: 0;
+  }
+
+  .binary {
+    font-size: 11pt;
+  }
+
+  .bits-reseau { border-bottom-color: #000; }
+  .bits-hote { border-bottom-color: #999; }
+  .swatch--reseau { background: #000; }
+  .swatch--hote { background: #999; }
+
+  .swatch,
+  .bits-reseau,
+  .bits-hote,
+  .barre,
+  .pastille {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
   /* Tableaux : traits noirs, en-têtes répétés sur chaque page, lignes jamais coupées */
+  .table-zone {
+    overflow: visible;
+  }
+
   .data-table {
     font-size: 9pt;
   }
@@ -1298,29 +2344,15 @@ legend {
 
   .data-table tr,
   .card,
-  .stats {
+  .stats,
+  .avertissement {
     break-inside: avoid;
   }
 
-  /* Binaire : sans couleur, les bits réseau sont en gras soulignés */
-  .bits-reseau {
-    background: none;
-    text-decoration: underline;
-  }
-
-  .bits-hote {
-    color: #555;
-  }
-
-  .swatch--reseau {
-    background: #ccc;
-  }
-
-  /* Barre de répartition en niveaux de gris ; on demande à l'imprimante de garder les remplissages */
-  .barre,
-  .pastille {
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
+  /* Même taille pour toutes les cellules */
+  .data-table .mono,
+  .data-table .num {
+    font-size: 9pt;
   }
 
   .seg-0 { fill: #222; background: #222; }
@@ -1332,6 +2364,10 @@ legend {
     stroke: #fff;
   }
 
+  .hachures__fond {
+    fill: #fff;
+  }
+
   .hachures__trait {
     fill: #000;
   }
@@ -1341,31 +2377,76 @@ legend {
     background: repeating-linear-gradient(45deg, #000 0 2px, #fff 2px 5px);
   }
 
-  /* Même taille pour toutes les cellules (les IP en .mono étaient plus grandes) */
-  .data-table .mono,
-  .data-table .num {
-    font-size: 9pt;
+  .blocs li {
+    border: 1px solid #000;
   }
 
-  .legende-barre,
-  .blocs li {
-    color: #000;
-  }
-
-  .blocs li {
+  .avertissement {
     background: none;
-    border-color: #000;
+    border: 1.5px solid #000;
+    border-radius: 0;
+  }
+
+  .avertissement code {
+    background: none;
+    border: 0;
+    padding: 0;
+  }
+
+  .config__tete {
+    padding: 0 0 .15cm;
+    border-bottom: 1.5px solid #000;
+  }
+
+  /* Configuration imprimée en entier, sans zone défilante, lignes longues repliées */
+  .config__texte {
+    max-height: none;
+    padding: .2cm 0 0;
+    overflow: visible;
+    font-size: 8pt;
+    line-height: 1.45;
+    white-space: pre-wrap;
   }
 }
 
-/* ========== 8. Mouvement réduit : on coupe toutes les transitions ========== */
+/* 19. PRÉFÉRENCES D'ACCESSIBILITÉ ------------------------------------------- */
+/* « Moins de mouvement » : plus aucune animation ni transition (les apparitions sont déjà
+   dans un bloc « no-preference » ; ceci coupe aussi les micro-interactions). */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     transition-duration: .01ms !important;
     animation-duration: .01ms !important;
+    animation-delay: 0s !important;
     animation-iteration-count: 1 !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* Contraste renforcé demandé par le système : traits et textes discrets passent à l'encre */
+@media (prefers-contrast: more) {
+  :root {
+    --ink-2: #15181B;
+    --ink-3: #2A2F34;
+    --line: rgba(21, 24, 27, .6);
+    --line-soft: rgba(21, 24, 27, .4);
+    --field-line: #15181B;
+  }
+}
+
+/* Mode « couleurs forcées » (contraste élevé de Windows) : les états gardent un repère visible */
+@media (forced-colors: active) {
+  .tab[aria-selected="true"] {
+    outline: 2px solid Highlight;
+    outline-offset: -4px;
+  }
+
+  .case:checked::before {
+    background: Highlight;
+  }
+
+  .segment {
+    stroke: Canvas;
   }
 }
